@@ -77,16 +77,19 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
   }
 
   String _getReadableError(String error) {
+    // Show the actual error for debugging, but with user-friendly context
     if (error.contains('401') || error.contains('unauthorized')) {
-      return 'Invalid API key. Please check your OpenAI API key in Settings.';
+      return 'Invalid API key. Please check your OpenAI API key in Settings.\n\nTechnical details: $error';
     } else if (error.contains('429') || error.contains('quota')) {
-      return 'API quota exceeded. Please check your OpenAI billing and usage.';
+      return 'API quota exceeded. Please check your OpenAI billing and usage.\n\nTechnical details: $error';
     } else if (error.contains('network') || error.contains('connection')) {
-      return 'Network error. Please check your internet connection.';
+      return 'Network error. Please check your internet connection.\n\nTechnical details: $error';
     } else if (error.contains('timeout')) {
-      return 'Request timed out. Please try again.';
+      return 'Request timed out. Please try again.\n\nTechnical details: $error';
     }
-    return 'Unexpected error occurred. Please try again.';
+    
+    // For debugging: always show the full error
+    return 'Analysis failed. Please try again or check your settings.\n\nTechnical details: $error';
   }
 
   @override

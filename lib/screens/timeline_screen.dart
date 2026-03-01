@@ -279,7 +279,39 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Card(
+      child: Dismissible(
+        key: Key(meal.id),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: (direction) => _confirmDeleteMeal(meal),
+        onDismissed: (direction) => _deleteMeal(meal),
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 16),
+          decoration: BoxDecoration(
+            color: AppTheme.error,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.delete,
+                color: Colors.white,
+                size: 24,
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        child: Card(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -414,7 +446,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
           ),
         ),
       ),
-    );
+    ),);
   }
 
   Widget _buildMealPhoto(Meal meal) {
@@ -509,5 +541,93 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  Future<bool?> _confirmDeleteMeal(Meal meal) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Meal'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete this ${_getMealTypeDisplay(meal.type).toLowerCase()}?'),
+            if (meal.foodItems.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'This meal contains ${meal.foodItems.length} identified food item${meal.foodItems.length == 1 ? '' : 's'} and nutrition data.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            const Text(
+              'This action cannot be undone.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.error,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteMeal(Meal meal) async {
+    try {
+      final provider = context.read<NutritionProvider>();
+      await provider.deleteMeal(meal.id);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_getMealTypeDisplay(meal.type)} deleted'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Undo',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Undo not yet implemented'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete meal: $e'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }

@@ -77,7 +77,7 @@ class _AILoadingScreenState extends State<AILoadingScreen>
   }
 
   void _startMessageRotation() {
-    _messageTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+    _messageTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (mounted) {
         setState(() {
           _currentMessageIndex = (_currentMessageIndex + 1) % _funnyMessages.length;

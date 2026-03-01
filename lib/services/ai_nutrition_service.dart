@@ -29,6 +29,11 @@ class AINutritionService {
     }
 
     try {
+      // Debug: Log the metadata being sent
+      print('AI Analysis Debug:');
+      print('  Plate diameter: ${plateDiameter ?? 'not provided'}cm');
+      print('  Dish weight: ${dishWeight ?? 'not provided'}g');
+      
       // Read and encode the image
       final imageFile = File(imagePath);
       final imageBytes = await imageFile.readAsBytes();
@@ -36,6 +41,9 @@ class AINutritionService {
 
       // Create the analysis prompt
       final prompt = _buildAnalysisPrompt(plateDiameter, dishWeight);
+      
+      // Debug: Log the prompt context
+      print('  Prompt includes context: ${plateDiameter != null || dishWeight != null}');
 
       final response = await http.post(
         Uri.parse('https://api.openai.com/v1/chat/completions'),
@@ -91,13 +99,32 @@ class AINutritionService {
       contextInfo.add('Total dish weight: ${dishWeight}g');
     }
 
-    final context = contextInfo.isNotEmpty 
-        ? 'Additional context: ${contextInfo.join(', ')}\n\n'
+    final hasContext = contextInfo.isNotEmpty;
+    final context = hasContext 
+        ? '🔍 MEASUREMENT CONTEXT PROVIDED: ${contextInfo.join(', ')}\n\n'
         : '';
+
+    final calibrationInstructions = hasContext ? '''
+🎯 CRITICAL CALIBRATION INSTRUCTIONS:
+${plateDiameter != null ? '- The plate/bowl in the image is exactly ${plateDiameter}cm diameter (standard dinner plate = 25-27cm)' : ''}
+${dishWeight != null ? '- The total weight of food + container is ${dishWeight}g - use this to validate your estimates' : ''}
+- Scale your portion estimates based on these measurements
+- A smaller plate (< 23cm) means smaller portions than they appear
+- A larger plate (> 28cm) means larger portions than typical
+${dishWeight != null ? '- Your food weight estimates should sum to approximately ${dishWeight}g minus container weight' : ''}
+
+''' : '''
+⚠️ NO MEASUREMENT CONTEXT - Use visual estimation only
+- Assume standard 25cm dinner plate for reference
+- Use typical portion size assumptions
+
+''';
 
     return '''Analyze this meal photo and identify all visible food items. For each food item, estimate the portion size and calculate detailed nutritional information.
 
-${context}Please respond with ONLY valid JSON in this exact format:
+${context}${calibrationInstructions}
+
+Please respond with ONLY valid JSON in this exact format:
 
 {
   "foods": [
@@ -126,12 +153,15 @@ ${context}Please respond with ONLY valid JSON in this exact format:
 
 Guidelines:
 - Identify each distinct food item separately
-- Estimate weight in grams based on visual appearance
+- Estimate weight in grams based on visual appearance and provided context
+- If plate diameter is provided, use it for scale reference (typical dinner plate = 25-27cm)
+- If dish weight is provided, ensure your food weight estimates sum approximately to this total
 - Confidence from 0.0 to 1.0 based on identification certainty
 - Include realistic nutritional values per estimated portion
-- Be conservative with portion estimates rather than overestimating
+- Adjust portion sizes based on plate reference - smaller plates mean smaller portions
 - Consider cooking methods in nutrition calculations
-- Include key micronutrients when significant amounts are present''';
+- Include key micronutrients when significant amounts are present
+- CRITICAL: Use the provided measurements to calibrate your estimates - don't ignore this context''';
   }
 
   List<FoodItem> _parseAnalysisResponse(String response) {
