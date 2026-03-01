@@ -2,32 +2,28 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../models/meal.dart';
 import '../models/food_item.dart';
 import '../models/nutrition_data.dart';
 import '../providers/nutrition_provider.dart';
 import '../theme/app_theme.dart';
 
-class AIResultsScreen extends StatefulWidget {
-  final String imagePath;
-  final List<FoodItem> foodItems;
-  final double? plateDiameter;
-  final double? dishWeight;
+class MealDetailScreen extends StatefulWidget {
+  final Meal meal;
 
-  const AIResultsScreen({
+  const MealDetailScreen({
     super.key,
-    required this.imagePath,
-    required this.foodItems,
-    this.plateDiameter,
-    this.dishWeight,
+    required this.meal,
   });
 
   @override
-  State<AIResultsScreen> createState() => _AIResultsScreenState();
+  State<MealDetailScreen> createState() => _MealDetailScreenState();
 }
 
-class _AIResultsScreenState extends State<AIResultsScreen> {
-  late List<FoodItem> _editableFoodItems;
+class _MealDetailScreenState extends State<MealDetailScreen> {
+  late Meal _currentMeal;
   late NutritionData _totalNutrition;
+  bool _isEditing = false;
   bool _isSaving = false;
 
   // Controllers for nutrition editing
@@ -40,15 +36,13 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
   @override
   void initState() {
     super.initState();
-    _editableFoodItems = List.from(widget.foodItems);
+    _currentMeal = widget.meal;
     _calculateTotalNutrition();
     _initializeControllers();
   }
 
   void _calculateTotalNutrition() {
-    _totalNutrition = _editableFoodItems
-        .map((item) => item.nutrition)
-        .fold(NutritionData.zero, (total, nutrition) => total + nutrition);
+    _totalNutrition = _currentMeal.totalNutrition;
   }
 
   void _initializeControllers() {
@@ -58,7 +52,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     _fatController = TextEditingController(text: _totalNutrition.fat.toStringAsFixed(1));
     _fiberController = TextEditingController(text: (_totalNutrition.fiber ?? 0).toStringAsFixed(1));
 
-    // Listen for changes to update total
+    // Listen for changes
     _caloriesController.addListener(_onNutritionChanged);
     _proteinController.addListener(_onNutritionChanged);
     _carbsController.addListener(_onNutritionChanged);
@@ -67,6 +61,8 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
   }
 
   void _onNutritionChanged() {
+    if (!_isEditing) return;
+
     final calories = double.tryParse(_caloriesController.text) ?? 0;
     final protein = double.tryParse(_proteinController.text) ?? 0;
     final carbs = double.tryParse(_carbsController.text) ?? 0;
@@ -98,73 +94,149 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Analysis Results'),
+        title: Text(_getMealTypeDisplay()),
         backgroundColor: AppTheme.surface,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
+        actions: [
+          if (!_isEditing)
+            IconButton(
+              onPressed: _startEditing,
+              icon: const Icon(Icons.edit),
+              tooltip: 'Edit meal',
+            ),
+          if (_isEditing)
+            TextButton(
+              onPressed: _cancelEditing,
+              child: const Text('Cancel'),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildSuccessHeader(),
+            _buildMealHeader(),
             const SizedBox(height: 24),
-            _buildPhotoPreview(),
+            _buildPhotoSection(),
             const SizedBox(height: 24),
-            _buildNutritionSummary(),
-            const SizedBox(height: 24),
-            _buildIdentifiedFoods(),
-            const SizedBox(height: 32),
-            _buildActionButtons(),
+            _buildNutritionSection(),
+            if (_currentMeal.foodItems.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              _buildFoodItemsSection(),
+            ],
+            if (_isEditing) ...[
+              const SizedBox(height: 32),
+              _buildEditingActions(),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSuccessHeader() {
+  Widget _buildMealHeader() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.success.withAlpha(20),
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: AppTheme.cardDecoration,
       child: Column(
         children: [
-          const Icon(
-            Icons.auto_awesome,
-            size: 48,
-            color: AppTheme.success,
+          Row(
+            children: [
+              Icon(
+                _getMealTypeIcon(),
+                size: 24,
+                color: AppTheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _getMealTypeDisplay(),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      _formatDateTime(_currentMeal.timestamp),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_currentMeal.foodItems.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.success.withAlpha(20),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.auto_awesome,
+                        size: 16,
+                        color: AppTheme.success,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'AI Analyzed',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Analysis Complete!',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.success,
+          if (_currentMeal.plateDiameter != null || _currentMeal.dishWeight != null) ...[
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (_currentMeal.plateDiameter != null) ...[
+                  const Icon(Icons.circle_outlined, size: 16, color: AppTheme.textTertiary),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_currentMeal.plateDiameter!.toStringAsFixed(1)}cm plate',
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+                  ),
+                ],
+                if (_currentMeal.plateDiameter != null && _currentMeal.dishWeight != null)
+                  const Text(' • ', style: TextStyle(fontSize: 12, color: AppTheme.textTertiary)),
+                if (_currentMeal.dishWeight != null) ...[
+                  const Icon(Icons.scale_outlined, size: 16, color: AppTheme.textTertiary),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_currentMeal.dishWeight!.toStringAsFixed(0)}g total',
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+                  ),
+                ],
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Found ${_editableFoodItems.length} food item${_editableFoodItems.length == 1 ? '' : 's'} • '
-            'Tap any value to edit',
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildPhotoPreview() {
+  Widget _buildPhotoSection() {
+    if (_currentMeal.imagePath == null) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       decoration: AppTheme.cardDecoration,
       child: Column(
@@ -177,7 +249,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                 Icon(Icons.photo, color: AppTheme.primary, size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'Your Meal',
+                  'Meal Photo',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -194,13 +266,20 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: Image.file(
-                File(widget.imagePath),
+                File(_currentMeal.imagePath!),
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     color: AppTheme.surfaceVariant,
                     child: const Center(
-                      child: Icon(Icons.error, color: AppTheme.error, size: 32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.broken_image, color: AppTheme.error, size: 32),
+                          SizedBox(height: 8),
+                          Text('Image not found'),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -212,39 +291,48 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
-  Widget _buildNutritionSummary() {
+  Widget _buildNutritionSection() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AppTheme.cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.analytics, color: AppTheme.primary, size: 20),
-              SizedBox(width: 8),
-              Text(
+              const Icon(Icons.analytics, color: AppTheme.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
                 'Nutrition Summary',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const Spacer(),
+              if (_isEditing)
+                const Text(
+                  'Tap values to edit',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 16),
           
-          // Main macros in a grid
+          // Main macros
           Row(
             children: [
-              Expanded(child: _buildEditableNutrientCard(
+              Expanded(child: _buildNutrientCard(
                 'Calories',
                 _caloriesController,
                 AppTheme.calories,
                 'cal',
               )),
               const SizedBox(width: 12),
-              Expanded(child: _buildEditableNutrientCard(
+              Expanded(child: _buildNutrientCard(
                 'Protein',
                 _proteinController,
                 AppTheme.protein,
@@ -255,14 +343,14 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildEditableNutrientCard(
+              Expanded(child: _buildNutrientCard(
                 'Carbs',
                 _carbsController,
                 AppTheme.carbs,
                 'g',
               )),
               const SizedBox(width: 12),
-              Expanded(child: _buildEditableNutrientCard(
+              Expanded(child: _buildNutrientCard(
                 'Fat',
                 _fatController,
                 AppTheme.fat,
@@ -271,7 +359,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildEditableNutrientCard(
+          _buildNutrientCard(
             'Fiber',
             _fiberController,
             AppTheme.fiber,
@@ -283,7 +371,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
-  Widget _buildEditableNutrientCard(
+  Widget _buildNutrientCard(
     String label,
     TextEditingController controller,
     Color color,
@@ -291,14 +379,17 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     bool fullWidth = false,
   }) {
     return InkWell(
-      onTap: () => _showEditDialog(label, controller, unit),
+      onTap: _isEditing ? () => _showEditDialog(label, controller, unit) : null,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: color.withAlpha(15),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withAlpha(50)),
+          border: Border.all(
+            color: _isEditing ? color.withAlpha(100) : color.withAlpha(50),
+            width: _isEditing ? 2 : 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
@@ -323,11 +414,11 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                     color: color,
                   ),
                 ),
-                if (!fullWidth) ...[
+                if (_isEditing) ...[
                   const SizedBox(width: 4),
                   Icon(
                     Icons.edit,
-                    size: 14,
+                    size: fullWidth ? 16 : 14,
                     color: color.withAlpha(150),
                   ),
                 ],
@@ -342,21 +433,13 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            if (fullWidth) ...[
-              const SizedBox(width: 8),
-              Icon(
-                Icons.edit,
-                size: 16,
-                color: color.withAlpha(150),
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildIdentifiedFoods() {
+  Widget _buildFoodItemsSection() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AppTheme.cardDecoration,
@@ -378,8 +461,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
           ),
           const SizedBox(height: 16),
           
-          ..._editableFoodItems.map((food) {
-            
+          ..._currentMeal.foodItems.map((food) {
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
@@ -461,12 +543,12 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildEditingActions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ElevatedButton.icon(
-          onPressed: _isSaving ? null : _saveMeal,
+          onPressed: _isSaving ? null : _saveChanges,
           icon: _isSaving 
               ? const SizedBox(
                   width: 16,
@@ -474,21 +556,18 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
               : const Icon(Icons.save, size: 20),
-          label: Text(_isSaving ? 'Saving Meal...' : 'Save to Timeline'),
+          label: Text(_isSaving ? 'Saving...' : 'Save Changes'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.primary,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
           ),
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
+          onPressed: _isSaving ? null : _cancelEditing,
           icon: const Icon(Icons.close, size: 20),
-          label: const Text('Discard Results'),
+          label: const Text('Cancel Changes'),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppTheme.textSecondary,
             side: const BorderSide(color: AppTheme.divider),
@@ -499,6 +578,26 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
+  void _startEditing() {
+    setState(() {
+      _isEditing = true;
+    });
+  }
+
+  void _cancelEditing() {
+    // Reset controllers to original values
+    _calculateTotalNutrition();
+    _caloriesController.text = _totalNutrition.calories.toStringAsFixed(0);
+    _proteinController.text = _totalNutrition.protein.toStringAsFixed(1);
+    _carbsController.text = _totalNutrition.carbs.toStringAsFixed(1);
+    _fatController.text = _totalNutrition.fat.toStringAsFixed(1);
+    _fiberController.text = (_totalNutrition.fiber ?? 0).toStringAsFixed(1);
+    
+    setState(() {
+      _isEditing = false;
+    });
+  }
+
   void _showEditDialog(String label, TextEditingController controller, String unit) {
     final tempController = TextEditingController(text: controller.text);
     
@@ -506,23 +605,18 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Edit $label'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: tempController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: label,
-                suffixText: unit,
-                border: const OutlineInputBorder(),
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
-              ],
-              autofocus: true,
-            ),
+        content: TextField(
+          controller: tempController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: label,
+            suffixText: unit,
+            border: const OutlineInputBorder(),
+          ),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
           ],
+          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -541,7 +635,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
-  Future<void> _saveMeal() async {
+  Future<void> _saveChanges() async {
     setState(() {
       _isSaving = true;
     });
@@ -552,32 +646,28 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       // Create updated food items with adjusted nutrition
       final adjustedFoodItems = _adjustFoodItemNutrition();
       
-      // Save meal with AI analysis
-      await provider.saveMealWithAnalysis(
-        widget.imagePath,
-        adjustedFoodItems,
-        plateDiameter: widget.plateDiameter,
-        dishWeight: widget.dishWeight,
+      // Update the meal
+      final updatedMeal = _currentMeal.copyWith(
+        foodItems: adjustedFoodItems,
         analysisMetadata: {
-          'analyzedAt': DateTime.now().toIso8601String(),
-          'originalTotal': widget.foodItems
-              .map((f) => f.nutrition)
-              .fold(NutritionData.zero, (total, n) => total + n)
-              .toMap(),
+          ..._currentMeal.analysisMetadata ?? {},
+          'lastEditedAt': DateTime.now().toIso8601String(),
           'editedTotal': _totalNutrition.toMap(),
-          'confidence': widget.foodItems.isNotEmpty 
-              ? widget.foodItems.map((f) => f.confidence).reduce((a, b) => a + b) / widget.foodItems.length
-              : 0.0,
         },
       );
 
+      await provider.updateMeal(updatedMeal);
+      
       if (mounted) {
-        HapticFeedback.mediumImpact();
-        Navigator.of(context).pop(true); // Return success
+        setState(() {
+          _currentMeal = updatedMeal;
+          _isEditing = false;
+        });
         
+        HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🍽️ Meal saved successfully!'),
+            content: Text('✅ Meal updated successfully!'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
           ),
@@ -587,7 +677,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save meal: $e'),
+            content: Text('Failed to save changes: $e'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -603,19 +693,17 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
   }
 
   List<FoodItem> _adjustFoodItemNutrition() {
-    // If user edited the total nutrition, proportionally adjust each food item
-    final originalTotal = _editableFoodItems
-        .map((f) => f.nutrition)
-        .fold(NutritionData.zero, (total, n) => total + n);
+    if (_currentMeal.foodItems.isEmpty) return [];
     
-    if (originalTotal.calories == 0) return _editableFoodItems;
+    final originalTotal = _currentMeal.totalNutrition;
+    if (originalTotal.calories == 0) return _currentMeal.foodItems;
     
     final calorieRatio = _totalNutrition.calories / originalTotal.calories;
     final proteinRatio = originalTotal.protein > 0 ? _totalNutrition.protein / originalTotal.protein : 1.0;
     final carbsRatio = originalTotal.carbs > 0 ? _totalNutrition.carbs / originalTotal.carbs : 1.0;
     final fatRatio = originalTotal.fat > 0 ? _totalNutrition.fat / originalTotal.fat : 1.0;
     
-    return _editableFoodItems.map((food) {
+    return _currentMeal.foodItems.map((food) {
       final adjustedNutrition = NutritionData(
         calories: food.nutrition.calories * calorieRatio,
         protein: food.nutrition.protein * proteinRatio,
@@ -626,6 +714,61 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       
       return food.copyWith(nutrition: adjustedNutrition);
     }).toList();
+  }
+
+  String _getMealTypeDisplay() {
+    switch (_currentMeal.type) {
+      case MealType.breakfast:
+        return 'Breakfast';
+      case MealType.lunch:
+        return 'Lunch';
+      case MealType.dinner:
+        return 'Dinner';
+      case MealType.snack:
+        return 'Snack';
+    }
+  }
+
+  IconData _getMealTypeIcon() {
+    switch (_currentMeal.type) {
+      case MealType.breakfast:
+        return Icons.free_breakfast;
+      case MealType.lunch:
+        return Icons.lunch_dining;
+      case MealType.dinner:
+        return Icons.dinner_dining;
+      case MealType.snack:
+        return Icons.local_cafe;
+    }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final time = _formatTime(dateTime);
+    final now = DateTime.now();
+    
+    if (_isSameDay(dateTime, now)) {
+      return 'Today at $time';
+    } else if (_isSameDay(dateTime, now.subtract(const Duration(days: 1)))) {
+      return 'Yesterday at $time';
+    } else {
+      final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${weekdays[dateTime.weekday - 1]}, ${months[dateTime.month - 1]} ${dateTime.day} at $time';
+    }
+  }
+
+  String _formatTime(DateTime time) {
+    final hour = time.hour;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    
+    return '$displayHour:$minute $period';
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   Color _getConfidenceColor(double confidence) {
