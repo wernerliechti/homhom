@@ -8,9 +8,9 @@ import 'settings_screen.dart';
 import 'meal_detail_screen.dart';
 
 class TimelineScreen extends StatefulWidget {
-  final Function(int)? onNavigateToTab;
+  final VoidCallback? onNavigateToAddMeal;
   
-  const TimelineScreen({super.key, this.onNavigateToTab});
+  const TimelineScreen({super.key, this.onNavigateToAddMeal});
 
   @override
   State<TimelineScreen> createState() => _TimelineScreenState();
@@ -256,10 +256,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
-                // Navigate to camera tab
-                widget.onNavigateToTab?.call(2);
+                // Navigate to add meal
+                widget.onNavigateToAddMeal?.call();
               },
-              icon: const Icon(Icons.camera_alt, size: 20),
+              icon: const Icon(Icons.add, size: 20),
               label: const Text('Add First Meal'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,

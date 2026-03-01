@@ -5,6 +5,9 @@ import '../models/meal.dart';
 import '../models/food_item.dart';
 import '../models/nutrition_goals.dart';
 import '../models/nutrition_data.dart';
+import '../models/goal_period.dart';
+import '../models/nutrition_stats.dart';
+import 'package:uuid/uuid.dart';
 
 class DatabaseService {
   static Database? _database;
@@ -21,9 +24,14 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await _createTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await _createGoalPeriodsTable(db);
+        }
       },
     );
   }
@@ -74,10 +82,26 @@ class DatabaseService {
       )
     ''');
 
+    // Goal periods table
+    await _createGoalPeriodsTable(db);
+
     // Indexes for faster queries
     await db.execute('CREATE INDEX idx_meals_timestamp ON meals(timestamp DESC)');
     await db.execute('CREATE INDEX idx_meals_type ON meals(type)');
     await db.execute('CREATE INDEX idx_daily_summaries_date ON daily_summaries(date DESC)');
+    await db.execute('CREATE INDEX idx_goal_periods_start_date ON goal_periods(startDate DESC)');
+  }
+
+  Future<void> _createGoalPeriodsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE goal_periods (
+        id TEXT PRIMARY KEY,
+        startDate TEXT NOT NULL,
+        goals TEXT NOT NULL,
+        notes TEXT,
+        createdAt TEXT NOT NULL
+      )
+    ''');
   }
 
   // Meal operations
@@ -246,6 +270,205 @@ class DatabaseService {
           : null,
       createdAt: DateTime.parse(map['createdAt'] as String),
       updatedAt: DateTime.parse(map['updatedAt'] as String),
+    );
+  }
+
+  // Goal periods operations
+  Future<void> insertGoalPeriod(GoalPeriod goalPeriod) async {
+    final db = await database;
+    await db.insert('goal_periods', _goalPeriodToMap(goalPeriod));
+  }
+
+  Future<void> updateGoalPeriod(GoalPeriod goalPeriod) async {
+    final db = await database;
+    await db.update(
+      'goal_periods',
+      _goalPeriodToMap(goalPeriod),
+      where: 'id = ?',
+      whereArgs: [goalPeriod.id],
+    );
+  }
+
+  Future<void> deleteGoalPeriod(String id) async {
+    final db = await database;
+    await db.delete('goal_periods', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<GoalPeriod>> getGoalPeriods() async {
+    final db = await database;
+    final maps = await db.query(
+      'goal_periods',
+      orderBy: 'startDate DESC',
+    );
+
+    return maps.map(_goalPeriodFromMap).toList();
+  }
+
+  Future<GoalPeriod?> getCurrentGoalPeriod([DateTime? date]) async {
+    final targetDate = date ?? DateTime.now();
+    final db = await database;
+    
+    final maps = await db.query(
+      'goal_periods',
+      where: 'startDate <= ?',
+      whereArgs: [targetDate.toIso8601String()],
+      orderBy: 'startDate DESC',
+      limit: 1,
+    );
+
+    return maps.isNotEmpty ? _goalPeriodFromMap(maps.first) : null;
+  }
+
+  Future<GoalPeriod> createDefaultGoalPeriod() async {
+    const uuid = Uuid();
+    final goalPeriod = GoalPeriod(
+      id: uuid.v4(),
+      startDate: DateTime.now(),
+      goals: NutritionGoals.balanced2000(),
+      notes: 'Default goals',
+      createdAt: DateTime.now(),
+    );
+
+    await insertGoalPeriod(goalPeriod);
+    return goalPeriod;
+  }
+
+  // Statistics calculations
+  Future<NutritionStats> calculateStats(StatsPeriod period) async {
+    final now = DateTime.now();
+    late final DateTime startDate;
+    late final DateTime endDate;
+
+    switch (period) {
+      case StatsPeriod.thisWeek:
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+      case StatsPeriod.thisMonth:
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+        break;
+      case StatsPeriod.total:
+        final firstMeal = await _getFirstMealDate();
+        startDate = firstMeal ?? now;
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+    }
+
+    return await _calculateStatsForPeriod(startDate, endDate);
+  }
+
+  Future<DateTime?> _getFirstMealDate() async {
+    final db = await database;
+    final result = await db.query(
+      'meals',
+      columns: ['timestamp'],
+      orderBy: 'timestamp ASC',
+      limit: 1,
+    );
+
+    return result.isNotEmpty 
+        ? DateTime.parse(result.first['timestamp'] as String)
+        : null;
+  }
+
+  Future<NutritionStats> _calculateStatsForPeriod(DateTime startDate, DateTime endDate) async {
+    final meals = await getMealsInDateRange(startDate, endDate);
+    
+    if (meals.isEmpty) {
+      return NutritionStats(
+        mealsTracked: 0,
+        averageCalories: 0,
+        daysWithCalorieDeficit: 0,
+        averageCalorieDelta: 0,
+        proteinGoalHitRate: 0,
+        loggingConsistency: 0,
+        totalDays: endDate.difference(startDate).inDays + 1,
+        startDate: startDate,
+        endDate: endDate,
+      );
+    }
+
+    // Group meals by date
+    final mealsByDate = <DateTime, List<Meal>>{};
+    for (final meal in meals) {
+      final date = DateTime(meal.timestamp.year, meal.timestamp.month, meal.timestamp.day);
+      mealsByDate.putIfAbsent(date, () => []).add(meal);
+    }
+
+    final totalDays = endDate.difference(startDate).inDays + 1;
+    final daysWithMeals = mealsByDate.keys.length;
+    
+    // Calculate daily nutrition totals
+    final dailyNutrition = <DateTime, NutritionData>{};
+    for (final entry in mealsByDate.entries) {
+      final dayTotal = entry.value
+          .map((meal) => meal.totalNutrition)
+          .fold(NutritionData.zero, (total, nutrition) => total + nutrition);
+      dailyNutrition[entry.key] = dayTotal;
+    }
+
+    // Calculate average calories
+    final totalCalories = dailyNutrition.values.map((n) => n.calories).fold(0.0, (a, b) => a + b);
+    final averageCalories = daysWithMeals > 0 ? totalCalories / daysWithMeals : 0.0;
+
+    // Calculate calorie deficit days and average delta
+    int deficitDays = 0;
+    double totalDelta = 0.0;
+    int proteinGoalsHit = 0;
+
+    for (final entry in dailyNutrition.entries) {
+      final goalPeriod = await getCurrentGoalPeriod(entry.key);
+      if (goalPeriod != null) {
+        final dailyCalories = entry.value.calories;
+        final goalCalories = goalPeriod.goals.calories;
+        final delta = dailyCalories - goalCalories;
+        
+        totalDelta += delta;
+        if (delta < 0) deficitDays++;
+        
+        // Check protein goal
+        if (entry.value.protein >= goalPeriod.goals.protein) {
+          proteinGoalsHit++;
+        }
+      }
+    }
+
+    final averageDelta = daysWithMeals > 0 ? totalDelta / daysWithMeals : 0.0;
+    final proteinHitRate = daysWithMeals > 0 ? proteinGoalsHit / daysWithMeals : 0.0;
+    final loggingConsistency = totalDays > 0 ? daysWithMeals / totalDays : 0.0;
+
+    return NutritionStats(
+      mealsTracked: meals.length,
+      averageCalories: averageCalories,
+      daysWithCalorieDeficit: deficitDays,
+      averageCalorieDelta: averageDelta,
+      proteinGoalHitRate: proteinHitRate,
+      loggingConsistency: loggingConsistency,
+      totalDays: totalDays,
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
+
+  Map<String, dynamic> _goalPeriodToMap(GoalPeriod goalPeriod) {
+    return {
+      'id': goalPeriod.id,
+      'startDate': goalPeriod.startDate.toIso8601String(),
+      'goals': json.encode(goalPeriod.goals.toMap()),
+      'notes': goalPeriod.notes,
+      'createdAt': goalPeriod.createdAt.toIso8601String(),
+    };
+  }
+
+  GoalPeriod _goalPeriodFromMap(Map<String, dynamic> map) {
+    return GoalPeriod(
+      id: map['id'] as String,
+      startDate: DateTime.parse(map['startDate'] as String),
+      goals: NutritionGoals.fromMap(json.decode(map['goals'] as String) as Map<String, dynamic>),
+      notes: map['notes'] as String? ?? '',
+      createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
 }
