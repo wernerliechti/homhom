@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../theme/app_theme.dart';
+import 'ai_analysis_flow.dart';
 
 class MealMetadataScreen extends StatefulWidget {
   final String imagePath;
@@ -465,8 +466,6 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
     });
 
     try {
-      final provider = context.read<NutritionProvider>();
-      
       // Parse optional metadata
       double? plateDiameter;
       double? dishWeight;
@@ -479,23 +478,28 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
         dishWeight = double.tryParse(_weightController.text);
       }
 
-      // Add meal with photo and metadata
-      await provider.addMealPhoto(
-        widget.imagePath,
-        plateDiameter: plateDiameter,
-        dishWeight: dishWeight,
-      );
-
-      // Success - return to previous screen
+      // Navigate to AI analysis flow
       if (mounted) {
-        HapticFeedback.mediumImpact();
-        Navigator.of(context).pop(true); // Return success
+        final result = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => AIAnalysisFlow(
+              imagePath: widget.imagePath,
+              plateDiameter: plateDiameter,
+              dishWeight: dishWeight,
+            ),
+          ),
+        );
+
+        if (result == true && mounted) {
+          HapticFeedback.mediumImpact();
+          Navigator.of(context).pop(true); // Return success to camera screen
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to process meal: $e'),
+            content: Text('Failed to start analysis: $e'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
           ),
