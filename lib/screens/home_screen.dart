@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'camera_screen.dart';
+import 'timeline_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _screens = [
       const DashboardScreen(),
-      const TimelineScreen(),
+      TimelineScreen(onNavigateToTab: _navigateToTab),
       CameraScreen(onNavigateToTab: _navigateToTab),
       const GoalsScreen(),
     ];
@@ -95,6 +97,21 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('HomHom'),
+        backgroundColor: AppTheme.surface,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+          ),
+        ],
       ),
       body: const Center(
         child: Column(
@@ -118,36 +135,7 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-class TimelineScreen extends StatelessWidget {
-  const TimelineScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Timeline'),
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.timeline, size: 64, color: AppTheme.primary),
-            SizedBox(height: 16),
-            Text(
-              'Timeline Screen',
-              style: AppTheme.heading2,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Chronological view of all your meals',
-              style: AppTheme.body2,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 
 
@@ -159,6 +147,21 @@ class GoalsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nutrition Goals'),
+        backgroundColor: AppTheme.surface,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+          ),
+        ],
       ),
       body: const Center(
         child: Column(

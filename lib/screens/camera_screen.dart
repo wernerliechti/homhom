@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../theme/app_theme.dart';
 import 'meal_metadata_screen.dart';
+import 'settings_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
@@ -146,7 +147,11 @@ class _CameraScreenState extends State<CameraScreen> {
               if (!isConfigured)
                 TextButton(
                   onPressed: () {
-                    widget.onNavigateToTab?.call(3); // Goals tab
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    );
                   },
                   child: const Text('Setup'),
                 ),
