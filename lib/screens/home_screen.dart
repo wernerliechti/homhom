@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'camera_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,12 +12,24 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const TimelineScreen(),
-    const CameraScreen(),
-    const GoalsScreen(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      const DashboardScreen(),
+      const TimelineScreen(),
+      CameraScreen(onNavigateToTab: _navigateToTab),
+      const GoalsScreen(),
+    ];
+  }
+
+  void _navigateToTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,36 +149,7 @@ class TimelineScreen extends StatelessWidget {
   }
 }
 
-class CameraScreen extends StatelessWidget {
-  const CameraScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Meal'),
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.camera_alt, size: 64, color: AppTheme.primary),
-            SizedBox(height: 16),
-            Text(
-              'Camera Screen',
-              style: AppTheme.heading2,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Capture meals and get AI nutrition analysis',
-              style: AppTheme.body2,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class GoalsScreen extends StatelessWidget {
   const GoalsScreen({super.key});
