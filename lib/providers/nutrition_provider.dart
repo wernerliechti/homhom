@@ -282,6 +282,7 @@ class NutritionProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      print('Loading statistics for all periods...');
       final results = await Future.wait([
         _database.calculateStats(StatsPeriod.thisWeek),
         _database.calculateStats(StatsPeriod.thisMonth),
@@ -293,6 +294,13 @@ class NutritionProvider with ChangeNotifier {
         StatsPeriod.thisMonth: results[1],
         StatsPeriod.total: results[2],
       };
+      
+      print('Statistics loaded: ${_statsCache.keys.length} periods');
+      for (final entry in _statsCache.entries) {
+        print('${entry.key}: ${entry.value.mealsTracked} meals');
+      }
+    } catch (e) {
+      print('Error loading statistics: $e');
     } finally {
       _isLoadingStats = false;
       notifyListeners();
@@ -304,11 +312,17 @@ class NutritionProvider with ChangeNotifier {
       return _statsCache[period]!;
     }
 
-    final stats = await _database.calculateStats(period);
-    _statsCache[period] = stats;
-    notifyListeners();
-
-    return stats;
+    try {
+      print('Loading stats for period: $period');
+      final stats = await _database.calculateStats(period);
+      _statsCache[period] = stats;
+      print('Loaded ${stats.mealsTracked} meals for $period');
+      notifyListeners();
+      return stats;
+    } catch (e) {
+      print('Error loading stats for $period: $e');
+      rethrow;
+    }
   }
 
   // AI service management

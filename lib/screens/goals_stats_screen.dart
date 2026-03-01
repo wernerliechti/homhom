@@ -35,7 +35,12 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
     // Load statistics and initialize goal form
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<NutritionProvider>();
-      provider.loadStatistics();
+      provider.loadStatistics().then((_) {
+        // After loading, ensure current period stats are available
+        if (!provider.statsCache.containsKey(_selectedPeriod)) {
+          provider.getStatsForPeriod(_selectedPeriod);
+        }
+      });
       _initializeGoalForm(provider);
     });
   }
@@ -143,6 +148,11 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
                 setState(() {
                   _selectedPeriod = StatsPeriod.values[index];
                 });
+                // Load stats for the selected period if not cached
+                final provider = context.read<NutritionProvider>();
+                if (!provider.statsCache.containsKey(_selectedPeriod)) {
+                  provider.getStatsForPeriod(_selectedPeriod);
+                }
               },
               tabs: StatsPeriod.values.map((period) => 
                 Tab(text: period.label)
@@ -241,41 +251,52 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
   }
 
   Widget _buildEmptyStats() {
-    return Container(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        children: [
-          Icon(
-            Icons.insert_chart_outlined,
-            size: 48,
-            color: AppTheme.textTertiary,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: SizedBox(
+        height: 200,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.insert_chart_outlined,
+                size: 48,
+                color: AppTheme.textTertiary,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No data for this period',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.textTertiary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Start logging meals to see your stats!',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textTertiary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'No data for this period',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppTheme.textTertiary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Start logging meals to see your stats!',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textTertiary,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildLoadingStats() {
-    return Container(
-      padding: const EdgeInsets.all(40),
-      child: const Center(
-        child: CircularProgressIndicator(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: SizedBox(
+        height: 200,
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
       ),
     );
   }
