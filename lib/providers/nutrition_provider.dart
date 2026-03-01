@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/meal.dart';
+import '../models/food_item.dart';
 import '../models/nutrition_goals.dart';
 import '../models/nutrition_data.dart';
 import '../services/database_service.dart';
@@ -162,6 +163,33 @@ class NutritionProvider with ChangeNotifier {
   Future<void> updateMeal(Meal meal) async {
     await _database.updateMeal(meal);
     await _loadMealsForDate(_selectedDate);
+  }
+
+  Future<Meal> saveMealWithAnalysis(
+    String imagePath,
+    List<FoodItem> foodItems, {
+    double? plateDiameter,
+    double? dishWeight,
+    Map<String, dynamic>? analysisMetadata,
+  }) async {
+    final mealType = Meal.getMealTypeFromTime(DateTime.now());
+    
+    final meal = Meal(
+      timestamp: DateTime.now(),
+      type: mealType,
+      imagePath: imagePath,
+      foodItems: foodItems,
+      plateDiameter: plateDiameter,
+      dishWeight: dishWeight,
+      analysisMetadata: analysisMetadata ?? {
+        'analyzedAt': DateTime.now().toIso8601String(),
+      },
+    );
+
+    await _database.insertMeal(meal);
+    await _loadMealsForDate(_selectedDate);
+    
+    return meal;
   }
 
   Future<void> deleteMeal(String mealId) async {
