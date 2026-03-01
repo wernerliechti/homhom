@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import '../models/meal.dart';
 import '../models/food_item.dart';
 import '../models/nutrition_goals.dart';
 import '../models/nutrition_data.dart';
+import '../models/goal_period.dart';
+import '../models/nutrition_stats.dart';
 import '../services/database_service.dart';
 import '../services/ai_nutrition_service.dart';
 
@@ -13,19 +16,31 @@ class NutritionProvider with ChangeNotifier {
   // Current state
   List<Meal> _todayMeals = [];
   NutritionGoals? _goals;
+  GoalPeriod? _currentGoalPeriod;
+  List<GoalPeriod> _goalHistory = [];
   NutritionData _todayNutrition = NutritionData.zero;
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   bool _isAnalyzing = false;
 
+  // Statistics
+  Map<StatsPeriod, NutritionStats> _statsCache = {};
+  bool _isLoadingStats = false;
+
   // Getters
   List<Meal> get todayMeals => _todayMeals;
   NutritionGoals? get goals => _goals;
+  GoalPeriod? get currentGoalPeriod => _currentGoalPeriod;
+  List<GoalPeriod> get goalHistory => _goalHistory;
   NutritionData get todayNutrition => _todayNutrition;
   DateTime get selectedDate => _selectedDate;
   bool get isLoading => _isLoading;
   bool get isAnalyzing => _isAnalyzing;
+  bool get isLoadingStats => _isLoadingStats;
   bool get hasGoals => _goals != null;
+
+  // Statistics getters
+  Map<StatsPeriod, NutritionStats> get statsCache => _statsCache;
 
   // Calculated values
   NutritionGoals get remainingNutrition {
@@ -53,12 +68,18 @@ class NutritionProvider with ChangeNotifier {
   }
 
   Future<void> _loadGoals() async {
-    _goals = await _database.getNutritionGoals();
-    if (_goals == null) {
-      // Set default goals
-      _goals = NutritionGoals.balanced2000();
-      await _database.setNutritionGoals(_goals!);
+    // Load current goal period
+    _currentGoalPeriod = await _database.getCurrentGoalPeriod();
+    
+    if (_currentGoalPeriod == null) {
+      // Create default goal period for new users
+      _currentGoalPeriod = await _database.createDefaultGoalPeriod();
     }
+    
+    _goals = _currentGoalPeriod!.goals;
+    
+    // Load goal history
+    _goalHistory = await _database.getGoalPeriods();
   }
 
   Future<void> _loadTodayData() async {
@@ -119,6 +140,9 @@ class NutritionProvider with ChangeNotifier {
 
     await _database.insertMeal(meal);
     await _loadMealsForDate(_selectedDate);
+    
+    // Clear stats cache as new meal was added
+    _statsCache.clear();
 
     // Start AI analysis in background
     _analyzeMealInBackground(meal);
@@ -163,6 +187,9 @@ class NutritionProvider with ChangeNotifier {
   Future<void> updateMeal(Meal meal) async {
     await _database.updateMeal(meal);
     await _loadMealsForDate(_selectedDate);
+    
+    // Clear stats cache as meal was updated
+    _statsCache.clear();
   }
 
   Future<Meal> saveMealWithAnalysis(
@@ -189,12 +216,18 @@ class NutritionProvider with ChangeNotifier {
     await _database.insertMeal(meal);
     await _loadMealsForDate(_selectedDate);
     
+    // Clear stats cache as new analyzed meal was added
+    _statsCache.clear();
+    
     return meal;
   }
 
   Future<void> deleteMeal(String mealId) async {
     await _database.deleteMeal(mealId);
     await _loadMealsForDate(_selectedDate);
+    
+    // Clear stats cache as meal was deleted
+    _statsCache.clear();
   }
 
   // Goals management
@@ -202,6 +235,80 @@ class NutritionProvider with ChangeNotifier {
     _goals = newGoals;
     await _database.setNutritionGoals(newGoals);
     notifyListeners();
+  }
+
+  Future<void> createNewGoalPeriod(NutritionGoals goals, DateTime startDate, String notes) async {
+    const uuid = Uuid();
+    final goalPeriod = GoalPeriod(
+      id: uuid.v4(),
+      startDate: startDate,
+      goals: goals,
+      notes: notes,
+      createdAt: DateTime.now(),
+    );
+
+    await _database.insertGoalPeriod(goalPeriod);
+    await _loadGoals();
+    
+    // Clear stats cache as goals changed
+    _statsCache.clear();
+    
+    notifyListeners();
+  }
+
+  Future<void> updateGoalPeriod(GoalPeriod goalPeriod) async {
+    await _database.updateGoalPeriod(goalPeriod);
+    await _loadGoals();
+    
+    // Clear stats cache
+    _statsCache.clear();
+    
+    notifyListeners();
+  }
+
+  Future<void> deleteGoalPeriod(String id) async {
+    await _database.deleteGoalPeriod(id);
+    await _loadGoals();
+    
+    // Clear stats cache
+    _statsCache.clear();
+    
+    notifyListeners();
+  }
+
+  // Statistics
+  Future<void> loadStatistics() async {
+    _isLoadingStats = true;
+    notifyListeners();
+
+    try {
+      final results = await Future.wait([
+        _database.calculateStats(StatsPeriod.thisWeek),
+        _database.calculateStats(StatsPeriod.thisMonth),
+        _database.calculateStats(StatsPeriod.total),
+      ]);
+
+      _statsCache = {
+        StatsPeriod.thisWeek: results[0],
+        StatsPeriod.thisMonth: results[1],
+        StatsPeriod.total: results[2],
+      };
+    } finally {
+      _isLoadingStats = false;
+      notifyListeners();
+    }
+  }
+
+  Future<NutritionStats> getStatsForPeriod(StatsPeriod period) async {
+    if (_statsCache.containsKey(period)) {
+      return _statsCache[period]!;
+    }
+
+    final stats = await _database.calculateStats(period);
+    _statsCache[period] = stats;
+    notifyListeners();
+
+    return stats;
   }
 
   // AI service management
