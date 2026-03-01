@@ -161,7 +161,7 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
           _buildMetadataToggle(
             title: 'Plate/Bowl Diameter',
             subtitle: 'Help estimate portion sizes',
-            icon: Icons.circle_outlined,
+            icon: Icons.straighten,
             isEnabled: _includePlateSize,
             onChanged: (value) {
               setState(() {
@@ -272,7 +272,7 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
         suffixText: 'cm',
         hintText: '25',
         helperText: 'Standard dinner plate: ~25-27cm, bowl: ~15-20cm',
-        prefixIcon: Icon(Icons.circle_outlined, size: 20),
+        prefixIcon: Icon(Icons.straighten, size: 20),
       ),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,1}$')),

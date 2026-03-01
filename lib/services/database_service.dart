@@ -351,12 +351,15 @@ class DatabaseService {
         break;
       case StatsPeriod.total:
         final firstMeal = await _getFirstMealDate();
-        startDate = firstMeal ?? now;
+        startDate = firstMeal ?? DateTime(now.year, now.month, now.day);
         endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
     }
 
-    return await _calculateStatsForPeriod(startDate, endDate);
+    print('Calculating stats for $period: $startDate to $endDate');
+    final result = await _calculateStatsForPeriod(startDate, endDate);
+    print('Stats result: ${result.mealsTracked} meals, ${result.averageCalories} avg cal');
+    return result;
   }
 
   Future<DateTime?> _getFirstMealDate() async {
@@ -375,6 +378,9 @@ class DatabaseService {
 
   Future<NutritionStats> _calculateStatsForPeriod(DateTime startDate, DateTime endDate) async {
     final meals = await getMealsInDateRange(startDate, endDate);
+    final totalDays = endDate.difference(startDate).inDays + 1;
+    
+    print('Found ${meals.length} meals for period $startDate to $endDate');
     
     if (meals.isEmpty) {
       return NutritionStats(
@@ -384,7 +390,7 @@ class DatabaseService {
         averageCalorieDelta: 0,
         proteinGoalHitRate: 0,
         loggingConsistency: 0,
-        totalDays: endDate.difference(startDate).inDays + 1,
+        totalDays: totalDays,
         startDate: startDate,
         endDate: endDate,
       );
@@ -392,26 +398,38 @@ class DatabaseService {
 
     // Group meals by date
     final mealsByDate = <DateTime, List<Meal>>{};
+    final mealsWithNutrition = <Meal>[];
+    
     for (final meal in meals) {
       final date = DateTime(meal.timestamp.year, meal.timestamp.month, meal.timestamp.day);
       mealsByDate.putIfAbsent(date, () => []).add(meal);
+      
+      // Track meals that have nutrition data (AI analyzed)
+      if (meal.foodItems.isNotEmpty) {
+        mealsWithNutrition.add(meal);
+      }
     }
 
-    final totalDays = endDate.difference(startDate).inDays + 1;
     final daysWithMeals = mealsByDate.keys.length;
+    print('Days with meals: $daysWithMeals, Meals with nutrition: ${mealsWithNutrition.length}');
     
-    // Calculate daily nutrition totals
+    // Calculate daily nutrition totals (only for meals with nutrition data)
     final dailyNutrition = <DateTime, NutritionData>{};
     for (final entry in mealsByDate.entries) {
       final dayTotal = entry.value
           .map((meal) => meal.totalNutrition)
           .fold(NutritionData.zero, (total, nutrition) => total + nutrition);
-      dailyNutrition[entry.key] = dayTotal;
+      
+      // Only include days that have nutrition data
+      if (dayTotal.calories > 0) {
+        dailyNutrition[entry.key] = dayTotal;
+      }
     }
 
-    // Calculate average calories
+    // Calculate average calories (only for days with nutrition data)
+    final daysWithNutrition = dailyNutrition.keys.length;
     final totalCalories = dailyNutrition.values.map((n) => n.calories).fold(0.0, (a, b) => a + b);
-    final averageCalories = daysWithMeals > 0 ? totalCalories / daysWithMeals : 0.0;
+    final averageCalories = daysWithNutrition > 0 ? totalCalories / daysWithNutrition : 0.0;
 
     // Calculate calorie deficit days and average delta
     int deficitDays = 0;
@@ -435,12 +453,14 @@ class DatabaseService {
       }
     }
 
-    final averageDelta = daysWithMeals > 0 ? totalDelta / daysWithMeals : 0.0;
-    final proteinHitRate = daysWithMeals > 0 ? proteinGoalsHit / daysWithMeals : 0.0;
+    final averageDelta = daysWithNutrition > 0 ? totalDelta / daysWithNutrition : 0.0;
+    final proteinHitRate = daysWithNutrition > 0 ? proteinGoalsHit / daysWithNutrition : 0.0;
     final loggingConsistency = totalDays > 0 ? daysWithMeals / totalDays : 0.0;
 
+    print('Final stats: ${meals.length} total meals, $daysWithNutrition days with nutrition, $averageCalories avg calories');
+
     return NutritionStats(
-      mealsTracked: meals.length,
+      mealsTracked: meals.length, // Total meals including photo-only
       averageCalories: averageCalories,
       daysWithCalorieDeficit: deficitDays,
       averageCalorieDelta: averageDelta,
