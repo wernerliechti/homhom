@@ -25,6 +25,7 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
   final _carbsController = TextEditingController();
   final _fatController = TextEditingController();
   DateTime _goalStartDate = DateTime.now();
+  DateTime? _goalEndDate;
   final _notesController = TextEditingController();
 
   @override
@@ -326,12 +327,33 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
             ),
             const SizedBox(height: 16),
             
-            const Text(
-              'Set your weekly nutrition targets',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Set your daily nutrition targets with flexible scheduling',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withAlpha(15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.primary.withAlpha(50)),
+                  ),
+                  child: const Text(
+                    '💡 Tip: Goals automatically become active on their start date. Leave end date empty for open-ended goals, or set an end date for time-limited goals.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             
@@ -433,31 +455,105 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
         
         const SizedBox(height: 16),
         
-        // Start date picker
-        InkWell(
-          onTap: _selectGoalStartDate,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceVariant,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 20),
-                const SizedBox(width: 12),
-                Text(
-                  'Goal from: ${_formatDate(_goalStartDate)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+        // Date range pickers
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: _selectGoalStartDate,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.play_arrow, size: 16, color: AppTheme.primary),
+                          SizedBox(width: 4),
+                          Text(
+                            'Start Date',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatDate(_goalStartDate),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
-                const Icon(Icons.edit, size: 16, color: AppTheme.textTertiary),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: InkWell(
+                onTap: _selectGoalEndDate,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            _goalEndDate != null ? Icons.stop : Icons.all_inclusive,
+                            size: 16,
+                            color: _goalEndDate != null ? AppTheme.error : AppTheme.secondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'End Date',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (_goalEndDate != null) ...[
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: _clearEndDate,
+                              child: const Icon(
+                                Icons.clear,
+                                size: 16,
+                                color: AppTheme.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _goalEndDate != null ? _formatDate(_goalEndDate!) : 'Open-ended',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: _goalEndDate != null ? AppTheme.textPrimary : AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         
         const SizedBox(height: 16),
@@ -511,26 +607,41 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
             ),
             child: Row(
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _formatDate(goalPeriod.startDate),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isActive ? AppTheme.primary : AppTheme.textPrimary,
-                      ),
-                    ),
-                    if (goalPeriod.notes.isNotEmpty)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        goalPeriod.notes,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary,
+                        goalPeriod.dateRangeString,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isActive ? AppTheme.primary : AppTheme.textPrimary,
                         ),
                       ),
-                  ],
+                      if (goalPeriod.notes.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          goalPeriod.notes,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                      if (goalPeriod.durationDays != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '${goalPeriod.durationDays} days',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textTertiary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
                 const Spacer(),
                 Text(
@@ -571,14 +682,41 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
       context: context,
       initialDate: _goalStartDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: _goalEndDate ?? DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Select goal start date',
     );
 
     if (date != null) {
       setState(() {
         _goalStartDate = date;
+        // If end date is before start date, clear it
+        if (_goalEndDate != null && _goalEndDate!.isBefore(date)) {
+          _goalEndDate = null;
+        }
       });
     }
+  }
+
+  Future<void> _selectGoalEndDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _goalEndDate ?? _goalStartDate.add(const Duration(days: 30)),
+      firstDate: _goalStartDate.add(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      helpText: 'Select goal end date (optional)',
+    );
+
+    if (date != null) {
+      setState(() {
+        _goalEndDate = date;
+      });
+    }
+  }
+
+  void _clearEndDate() {
+    setState(() {
+      _goalEndDate = null;
+    });
   }
 
   Future<void> _saveGoals(NutritionProvider provider) async {
@@ -595,7 +733,7 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
     );
 
     try {
-      await provider.createNewGoalPeriod(goals, _goalStartDate, _notesController.text);
+      await provider.createNewGoalPeriod(goals, _goalStartDate, _notesController.text, endDate: _goalEndDate);
       
       if (mounted) {
         HapticFeedback.mediumImpact();
@@ -610,6 +748,7 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
         // Clear form
         _notesController.clear();
         _goalStartDate = DateTime.now();
+        _goalEndDate = null;
       }
     } catch (e) {
       if (mounted) {

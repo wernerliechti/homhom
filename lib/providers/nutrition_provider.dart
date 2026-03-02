@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
 import '../models/meal.dart';
 import '../models/food_item.dart';
 import '../models/nutrition_goals.dart';
@@ -237,17 +236,9 @@ class NutritionProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createNewGoalPeriod(NutritionGoals goals, DateTime startDate, String notes) async {
-    const uuid = Uuid();
-    final goalPeriod = GoalPeriod(
-      id: uuid.v4(),
-      startDate: startDate,
-      goals: goals,
-      notes: notes,
-      createdAt: DateTime.now(),
-    );
-
-    await _database.insertGoalPeriod(goalPeriod);
+  Future<void> createNewGoalPeriod(NutritionGoals goals, DateTime startDate, String notes, {DateTime? endDate}) async {
+    // Use the new database method that handles automatic end date management
+    await _database.createGoalPeriod(goals, startDate, notes, endDate: endDate);
     await _loadGoals();
     
     // Clear stats cache as goals changed

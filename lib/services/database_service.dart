@@ -24,13 +24,16 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await _createTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await _createGoalPeriodsTable(db);
+        }
+        if (oldVersion < 3) {
+          await _addEndDateToGoalPeriods(db);
         }
       },
     );
@@ -97,11 +100,16 @@ class DatabaseService {
       CREATE TABLE goal_periods (
         id TEXT PRIMARY KEY,
         startDate TEXT NOT NULL,
+        endDate TEXT,
         goals TEXT NOT NULL,
         notes TEXT,
         createdAt TEXT NOT NULL
       )
     ''');
+  }
+
+  Future<void> _addEndDateToGoalPeriods(Database db) async {
+    await db.execute('ALTER TABLE goal_periods ADD COLUMN endDate TEXT');
   }
 
   // Meal operations
@@ -308,15 +316,50 @@ class DatabaseService {
     final targetDate = date ?? DateTime.now();
     final db = await database;
     
+    // Get all goal periods ordered by start date
     final maps = await db.query(
       'goal_periods',
-      where: 'startDate <= ?',
-      whereArgs: [targetDate.toIso8601String()],
-      orderBy: 'startDate DESC',
-      limit: 1,
+      orderBy: 'startDate ASC',
     );
 
-    return maps.isNotEmpty ? _goalPeriodFromMap(maps.first) : null;
+    final goalPeriods = maps.map(_goalPeriodFromMap).toList();
+    
+    // Find the active goal period for the target date
+    return _findActiveGoalPeriod(goalPeriods, targetDate);
+  }
+
+  /// Find the active goal period for a given date using the new logic
+  GoalPeriod? _findActiveGoalPeriod(List<GoalPeriod> goalPeriods, DateTime targetDate) {
+    if (goalPeriods.isEmpty) return null;
+
+    // Sort by start date to ensure proper ordering
+    goalPeriods.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    // First, auto-set end dates for goals that don't have them
+    _autoSetEndDates(goalPeriods);
+
+    // Find the goal that is active for the target date
+    for (final goal in goalPeriods) {
+      if (goal.isActiveOn(targetDate)) {
+        return goal;
+      }
+    }
+
+    return null;
+  }
+
+  /// Automatically set end dates for goals that don't have them
+  void _autoSetEndDates(List<GoalPeriod> goalPeriods) {
+    for (int i = 0; i < goalPeriods.length - 1; i++) {
+      final currentGoal = goalPeriods[i];
+      final nextGoal = goalPeriods[i + 1];
+      
+      // If current goal doesn't have an end date, set it to the next goal's start date
+      if (currentGoal.endDate == null) {
+        goalPeriods[i] = currentGoal.copyWith(endDate: nextGoal.startDate);
+      }
+    }
+    // The last goal remains open-ended if it doesn't have an end date
   }
 
   Future<GoalPeriod> createDefaultGoalPeriod() async {
@@ -331,6 +374,55 @@ class DatabaseService {
 
     await insertGoalPeriod(goalPeriod);
     return goalPeriod;
+  }
+
+  /// Create a new goal period and automatically manage end dates
+  Future<GoalPeriod> createGoalPeriod(
+    NutritionGoals goals, 
+    DateTime startDate, 
+    String notes, {
+    DateTime? endDate,
+  }) async {
+    const uuid = Uuid();
+    final newGoal = GoalPeriod(
+      id: uuid.v4(),
+      startDate: startDate,
+      endDate: endDate,
+      goals: goals,
+      notes: notes,
+      createdAt: DateTime.now(),
+    );
+
+    // Get existing goal periods to manage overlaps
+    final existingGoals = await getGoalPeriods();
+    
+    // Handle automatic end date setting for previous goals
+    await _handleGoalPeriodInsertion(existingGoals, newGoal);
+    
+    await insertGoalPeriod(newGoal);
+    return newGoal;
+  }
+
+  /// Handle automatic end date management when inserting a new goal period
+  Future<void> _handleGoalPeriodInsertion(List<GoalPeriod> existingGoals, GoalPeriod newGoal) async {
+    // Sort existing goals by start date
+    existingGoals.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    // Find goals that need their end dates updated
+    for (final existingGoal in existingGoals) {
+      // If existing goal starts before the new goal and doesn't have an end date
+      if (existingGoal.startDate.isBefore(newGoal.startDate) && existingGoal.endDate == null) {
+        // Set its end date to the new goal's start date
+        final updatedGoal = existingGoal.copyWith(endDate: newGoal.startDate);
+        await updateGoalPeriod(updatedGoal);
+      }
+      
+      // If existing goal starts after the new goal and the new goal doesn't have an end date
+      if (existingGoal.startDate.isAfter(newGoal.startDate) && newGoal.endDate == null) {
+        // The new goal's end date will be set to the existing goal's start date
+        // (This is handled when inserting the new goal)
+      }
+    }
   }
 
   // Statistics calculations
@@ -476,6 +568,7 @@ class DatabaseService {
     return {
       'id': goalPeriod.id,
       'startDate': goalPeriod.startDate.toIso8601String(),
+      'endDate': goalPeriod.endDate?.toIso8601String(),
       'goals': json.encode(goalPeriod.goals.toMap()),
       'notes': goalPeriod.notes,
       'createdAt': goalPeriod.createdAt.toIso8601String(),
@@ -486,6 +579,7 @@ class DatabaseService {
     return GoalPeriod(
       id: map['id'] as String,
       startDate: DateTime.parse(map['startDate'] as String),
+      endDate: map['endDate'] != null ? DateTime.parse(map['endDate'] as String) : null,
       goals: NutritionGoals.fromMap(json.decode(map['goals'] as String) as Map<String, dynamic>),
       notes: map['notes'] as String? ?? '',
       createdAt: DateTime.parse(map['createdAt'] as String),
