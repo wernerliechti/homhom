@@ -2,9 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
+import '../providers/hom_provider.dart';
 import '../models/meal.dart';
 import '../theme/app_theme.dart';
-import 'settings_screen.dart';
+import '../widgets/hom_balance_indicator.dart';
+import 'new_settings_screen.dart';
 import 'meal_detail_screen.dart';
 
 class TimelineScreen extends StatefulWidget {
@@ -34,12 +36,31 @@ class _TimelineScreenState extends State<TimelineScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.surface,
         elevation: 0,
+        title: Consumer<HomProvider>(
+          builder: (context, homProvider, child) {
+            // Debug: Always show something to verify provider is working
+            if (!homProvider.isInitialized) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withAlpha(50),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'HOMs: Loading...',
+                  style: TextStyle(fontSize: 12, color: Colors.orange),
+                ),
+              );
+            }
+            return const HomBalanceIndicator(compact: true);
+          },
+        ),
         actions: [
           IconButton(
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const SettingsScreen(),
+                  builder: (_) => const NewSettingsScreen(),
                 ),
               );
             },

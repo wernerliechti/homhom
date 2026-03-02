@@ -7,6 +7,7 @@ import '../models/goal_period.dart';
 import '../models/nutrition_stats.dart';
 import '../services/database_service.dart';
 import '../services/ai_nutrition_service.dart';
+import 'hom_provider.dart';
 
 class NutritionProvider with ChangeNotifier {
   final DatabaseService _database = DatabaseService();
