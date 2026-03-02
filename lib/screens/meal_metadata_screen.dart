@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
+import '../providers/hom_provider.dart';
 import '../theme/app_theme.dart';
 import 'ai_analysis_flow.dart';
 
@@ -526,6 +527,23 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
 
       if (_includeDishWeight && _weightController.text.isNotEmpty) {
         dishWeight = double.tryParse(_weightController.text);
+      }
+
+      // Consume HOM before AI analysis
+      final homProvider = context.read<HomProvider>();
+      final homConsumed = await homProvider.consumeHomForScan();
+      
+      if (!homConsumed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(homProvider.lastError ?? 'Unable to consume HOM'),
+              backgroundColor: AppTheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
       }
 
       // Navigate to AI analysis flow

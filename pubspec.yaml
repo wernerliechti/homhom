@@ -48,6 +48,9 @@ dependencies:
   # State management
   provider: ^6.1.4
   
+  # In-app purchases
+  in_app_purchase: ^3.2.0
+  
   # Date and time
   intl: ^0.20.2
   

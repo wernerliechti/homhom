@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
+import '../providers/hom_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/hom_balance_indicator.dart';
 import 'meal_metadata_screen.dart';
-import 'settings_screen.dart';
+import 'purchase_homs_screen.dart';
+import 'new_settings_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
@@ -27,9 +30,20 @@ class _CameraScreenState extends State<CameraScreen> {
         title: const Text('Add Meal'),
         backgroundColor: AppTheme.surface,
         elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Consumer<HomProvider>(
+              builder: (context, homProvider, child) {
+                if (!homProvider.isInitialized) return const SizedBox.shrink();
+                return const HomBalanceIndicator(compact: true);
+              },
+            ),
+          ),
+        ],
       ),
-      body: Consumer<NutritionProvider>(
-        builder: (context, provider, child) {
+      body: Consumer2<NutritionProvider, HomProvider>(
+        builder: (context, nutritionProvider, homProvider, child) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -39,12 +53,16 @@ class _CameraScreenState extends State<CameraScreen> {
                 _buildHeader(),
                 const SizedBox(height: 32),
 
-                // AI Status Card
-                _buildAIStatusCard(provider),
+                // HOM Status Card
+                _buildHomStatusCard(homProvider),
+                const SizedBox(height: 16),
+
+                // AI Status Card  
+                _buildAIStatusCard(nutritionProvider),
                 const SizedBox(height: 24),
 
                 // Capture Options
-                _buildCaptureOptions(),
+                _buildCaptureOptions(homProvider),
                 const SizedBox(height: 32),
 
                 // Instructions
@@ -149,7 +167,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const SettingsScreen(),
+                        builder: (_) => const NewSettingsScreen(),
                       ),
                     );
                   },
@@ -162,7 +180,87 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
-  Widget _buildCaptureOptions() {
+  Widget _buildHomStatusCard(HomProvider homProvider) {
+    if (!homProvider.isInitialized || homProvider.balance == null) {
+      return const SizedBox.shrink();
+    }
+
+    final balance = homProvider.balance!;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: balance.canScan 
+            ? AppTheme.success.withAlpha(20) 
+            : AppTheme.error.withAlpha(20),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: balance.canScan ? AppTheme.success : AppTheme.error,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            balance.canScan ? Icons.check_circle : Icons.error,
+            color: balance.canScan ? AppTheme.success : AppTheme.error,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  balance.isUnlimited 
+                      ? 'Unlimited Scanning Ready'
+                      : balance.canScan
+                          ? '${balance.balance} HOM${balance.balance != 1 ? 's' : ''} Available'
+                          : 'Out of HOMs',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: balance.canScan ? AppTheme.success : AppTheme.error,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  balance.isUnlimited
+                      ? 'Using your OpenAI API key'
+                      : balance.canScan
+                          ? 'Each meal scan consumes 1 HOM'
+                          : 'Purchase HOMs or set up your API key to continue',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!balance.canScan) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PurchaseHomsScreen(isPaywall: true),
+                  ),
+                );
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                minimumSize: Size.zero,
+              ),
+              child: const Text('Top Up'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCaptureOptions(HomProvider homProvider) {
     return Column(
       children: [
         // Camera Button
@@ -344,11 +442,30 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _captureFromCamera() async {
+    final homProvider = context.read<HomProvider>();
+    if (!await _checkHomAvailability(homProvider)) return;
     await _pickImage(ImageSource.camera);
   }
 
   Future<void> _selectFromGallery() async {
+    final homProvider = context.read<HomProvider>();
+    if (!await _checkHomAvailability(homProvider)) return;
     await _pickImage(ImageSource.gallery);
+  }
+
+  Future<bool> _checkHomAvailability(HomProvider homProvider) async {
+    if (!homProvider.canScan) {
+      // Show paywall
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => const PurchaseHomsScreen(isPaywall: true),
+        ),
+      );
+      
+      // Return true if user purchased HOMs, false otherwise
+      return result == true && homProvider.canScan;
+    }
+    return true;
   }
 
   Future<void> _pickImage(ImageSource source) async {

@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
+import '../providers/hom_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/hom_balance_indicator.dart';
+import '../screens/purchase_homs_screen.dart';
+import '../screens/api_config_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
