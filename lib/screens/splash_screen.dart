@@ -17,9 +17,9 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    
+
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 100),
       vsync: this,
     );
 
@@ -43,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
 
     // Navigate after splash
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
       }
@@ -72,16 +72,16 @@ class _SplashScreenState extends State<SplashScreen>
                   scale: _scaleAnimation.value,
                   child: ClipOval(
                     child: Image.asset(
-                      'assets/images/logo.png',
+                      'assets/images/app_icon.png',
                       height: 120,
                       width: 120,
                       fit: BoxFit.cover,
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // App name with fade animation
                 FadeTransition(
                   opacity: _fadeAnimation,
@@ -95,9 +95,9 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Subtitle with fade animation
                 FadeTransition(
                   opacity: _fadeAnimation,

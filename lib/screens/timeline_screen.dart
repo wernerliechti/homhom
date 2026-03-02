@@ -9,7 +9,7 @@ import 'meal_detail_screen.dart';
 
 class TimelineScreen extends StatefulWidget {
   final VoidCallback? onNavigateToAddMeal;
-  
+
   const TimelineScreen({super.key, this.onNavigateToAddMeal});
 
   @override
@@ -30,20 +30,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            ClipOval(
-              child: Image.asset(
-                'assets/images/logo.png',
-                height: 32,
-                width: 32,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text('HomHom'),
-          ],
-        ),
         backgroundColor: AppTheme.surface,
         elevation: 0,
         actions: [
@@ -213,7 +199,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   Widget _buildMealsList(NutritionProvider provider) {
     final meals = provider.todayMeals;
-    
+
     if (meals.isEmpty) {
       return SliverFillRemaining(
         child: _buildEmptyState(),
@@ -277,7 +263,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -325,141 +312,145 @@ class _TimelineScreenState extends State<TimelineScreen> {
           ),
         ),
         child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: InkWell(
-          onTap: () => _openMealDetail(meal),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Photo thumbnail
-                _buildMealPhoto(meal),
-                const SizedBox(width: 16),
-                
-                // Content
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header with time and meal type
-                      Row(
-                        children: [
-                          Icon(
-                            _getMealTypeIcon(meal.type),
-                            size: 18,
-                            color: AppTheme.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _getMealTypeDisplay(meal.type),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: InkWell(
+            onTap: () => _openMealDetail(meal),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Photo thumbnail
+                  _buildMealPhoto(meal),
+                  const SizedBox(width: 16),
+
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header with time and meal type
+                        Row(
+                          children: [
+                            Icon(
+                              _getMealTypeIcon(meal.type),
+                              size: 18,
+                              color: AppTheme.primary,
                             ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _getMealTypeDisplay(meal.type),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              _formatTime(meal.timestamp),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Analysis status and nutrition
+                        if (hasAnalysis) ...[
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.auto_awesome,
+                                size: 14,
+                                color: AppTheme.success,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'AI Analyzed • ${meal.foodItems.length} food${meal.foodItems.length == 1 ? '' : 's'}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.success,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
-                          const Spacer(),
+                          const SizedBox(height: 6),
                           Text(
-                            _formatTime(meal.timestamp),
+                            '${nutrition.calories.toInt()} cal • '
+                            '${nutrition.protein.toInt()}g protein • '
+                            '${nutrition.carbs.toInt()}g carbs • '
+                            '${nutrition.fat.toInt()}g fat',
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               color: AppTheme.textSecondary,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      // Analysis status and nutrition
-                      if (hasAnalysis) ...[
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.auto_awesome,
-                              size: 14,
-                              color: AppTheme.success,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'AI Analyzed • ${meal.foodItems.length} food${meal.foodItems.length == 1 ? '' : 's'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.success,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${nutrition.calories.toInt()} cal • '
-                          '${nutrition.protein.toInt()}g protein • '
-                          '${nutrition.carbs.toInt()}g carbs • '
-                          '${nutrition.fat.toInt()}g fat',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          meal.foodItems.take(3).map((f) => f.name).join(', ') +
-                              (meal.foodItems.length > 3 ? '...' : ''),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textTertiary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ] else ...[
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.photo,
-                              size: 14,
+                          const SizedBox(height: 4),
+                          Text(
+                            meal.foodItems
+                                    .take(3)
+                                    .map((f) => f.name)
+                                    .join(', ') +
+                                (meal.foodItems.length > 3 ? '...' : ''),
+                            style: const TextStyle(
+                              fontSize: 12,
                               color: AppTheme.textTertiary,
                             ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Photo only',
-                              style: TextStyle(
-                                fontSize: 12,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ] else ...[
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.photo,
+                                size: 14,
                                 color: AppTheme.textTertiary,
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Tap to add nutrition details or analyze with AI',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                            fontStyle: FontStyle.italic,
+                              const SizedBox(width: 4),
+                              const Text(
+                                'Photo only',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textTertiary,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Tap to add nutrition details or analyze with AI',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                
-                // Arrow to indicate clickable
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppTheme.textTertiary,
-                  size: 20,
-                ),
-              ],
+
+                  // Arrow to indicate clickable
+                  const Icon(
+                    Icons.chevron_right,
+                    color: AppTheme.textTertiary,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),);
+    );
   }
 
   Widget _buildMealPhoto(Meal meal) {
@@ -470,7 +461,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         borderRadius: BorderRadius.circular(12),
         color: AppTheme.surfaceVariant,
       ),
-      child: meal.imagePath != null 
+      child: meal.imagePath != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.file(
@@ -530,15 +521,27 @@ class _TimelineScreenState extends State<TimelineScreen> {
   String _formatDate(DateTime date) {
     final today = DateTime.now();
     final yesterday = today.subtract(const Duration(days: 1));
-    
+
     if (_isSameDay(date, today)) {
       return 'Today';
     } else if (_isSameDay(date, yesterday)) {
       return 'Yesterday';
     } else {
       final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
       return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
     }
   }
@@ -548,7 +551,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     final minute = time.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    
+
     return '$displayHour:$minute $period';
   }
 
@@ -565,7 +568,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Are you sure you want to delete this ${_getMealTypeDisplay(meal.type).toLowerCase()}?'),
+            Text(
+                'Are you sure you want to delete this ${_getMealTypeDisplay(meal.type).toLowerCase()}?'),
             if (meal.foodItems.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
@@ -609,7 +613,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     try {
       final provider = context.read<NutritionProvider>();
       await provider.deleteMeal(meal.id);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
