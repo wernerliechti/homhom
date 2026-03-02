@@ -6,7 +6,7 @@ import '../models/nutrition_stats.dart';
 import '../models/nutrition_goals.dart';
 import '../models/goal_period.dart';
 import '../theme/app_theme.dart';
-import 'settings_screen.dart';
+import 'new_settings_screen.dart';
 
 class GoalsStatsScreen extends StatefulWidget {
   const GoalsStatsScreen({super.key});
@@ -78,7 +78,7 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const SettingsScreen(),
+                  builder: (_) => const NewSettingsScreen(),
                 ),
               );
             },
