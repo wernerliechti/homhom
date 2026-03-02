@@ -20,15 +20,18 @@ class MealMetadataScreen extends StatefulWidget {
 
 class _MealMetadataScreenState extends State<MealMetadataScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _dishNameController = TextEditingController();
   final _plateController = TextEditingController();
   final _weightController = TextEditingController();
   
+  bool _includeDishName = false;
   bool _includePlateSize = false;
   bool _includeDishWeight = false;
   bool _isProcessing = false;
 
   @override
   void dispose() {
+    _dishNameController.dispose();
     _plateController.dispose();
     _weightController.dispose();
     super.dispose();
@@ -157,6 +160,29 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
           ),
           const SizedBox(height: 20),
 
+          // Dish Name Toggle
+          _buildMetadataToggle(
+            title: 'Enter Name of the Dish',
+            subtitle: 'Help AI identify the food more accurately',
+            icon: Icons.restaurant_menu,
+            isEnabled: _includeDishName,
+            onChanged: (value) {
+              setState(() {
+                _includeDishName = value;
+                if (!value) {
+                  _dishNameController.clear();
+                }
+              });
+            },
+          ),
+
+          if (_includeDishName) ...[
+            const SizedBox(height: 16),
+            _buildDishNameInput(),
+          ],
+
+          const SizedBox(height: 16),
+
           // Plate Diameter Toggle
           _buildMetadataToggle(
             title: 'Plate/Bowl Diameter',
@@ -260,6 +286,25 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDishNameInput() {
+    return TextFormField(
+      controller: _dishNameController,
+      decoration: const InputDecoration(
+        labelText: 'Dish Name',
+        hintText: 'e.g., Chicken Caesar Salad, Margherita Pizza',
+        helperText: 'Include cooking method if relevant (grilled, fried, etc.)',
+        prefixIcon: Icon(Icons.restaurant_menu, size: 20),
+      ),
+      textCapitalization: TextCapitalization.words,
+      validator: (value) {
+        if (_includeDishName && (value == null || value.trim().isEmpty)) {
+          return 'Please enter the dish name';
+        }
+        return null;
+      },
     );
   }
 
@@ -467,8 +512,13 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
 
     try {
       // Parse optional metadata
+      String? dishName;
       double? plateDiameter;
       double? dishWeight;
+
+      if (_includeDishName && _dishNameController.text.trim().isNotEmpty) {
+        dishName = _dishNameController.text.trim();
+      }
 
       if (_includePlateSize && _plateController.text.isNotEmpty) {
         plateDiameter = double.tryParse(_plateController.text);
@@ -484,6 +534,7 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
           MaterialPageRoute(
             builder: (_) => AIAnalysisFlow(
               imagePath: widget.imagePath,
+              dishName: dishName,
               plateDiameter: plateDiameter,
               dishWeight: dishWeight,
             ),

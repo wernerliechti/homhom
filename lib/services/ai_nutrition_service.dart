@@ -20,6 +20,7 @@ class AINutritionService {
   /// Analyze a meal photo and return identified food items with nutrition data
   Future<List<FoodItem>> analyzeMealPhoto(
     String imagePath, {
+    String? dishName,
     double? plateDiameter,
     double? dishWeight,
   }) async {
@@ -31,6 +32,7 @@ class AINutritionService {
     try {
       // Debug: Log the metadata being sent
       print('AI Analysis Debug:');
+      print('  Dish name: ${dishName ?? 'not provided'}');
       print('  Plate diameter: ${plateDiameter ?? 'not provided'}cm');
       print('  Dish weight: ${dishWeight ?? 'not provided'}g');
       
@@ -40,10 +42,10 @@ class AINutritionService {
       final base64Image = base64Encode(imageBytes);
 
       // Create the analysis prompt
-      final prompt = _buildAnalysisPrompt(plateDiameter, dishWeight);
+      final prompt = _buildAnalysisPrompt(dishName, plateDiameter, dishWeight);
       
       // Debug: Log the prompt context
-      print('  Prompt includes context: ${plateDiameter != null || dishWeight != null}');
+      print('  Prompt includes context: ${dishName != null || plateDiameter != null || dishWeight != null}');
 
       final response = await http.post(
         Uri.parse('https://api.openai.com/v1/chat/completions'),
@@ -89,9 +91,12 @@ class AINutritionService {
     }
   }
 
-  String _buildAnalysisPrompt(double? plateDiameter, double? dishWeight) {
+  String _buildAnalysisPrompt(String? dishName, double? plateDiameter, double? dishWeight) {
     final contextInfo = <String>[];
     
+    if (dishName != null) {
+      contextInfo.add('Dish name: "$dishName"');
+    }
     if (plateDiameter != null) {
       contextInfo.add('Plate diameter: ${plateDiameter}cm');
     }
@@ -106,12 +111,14 @@ class AINutritionService {
 
     final calibrationInstructions = hasContext ? '''
 🎯 CRITICAL CALIBRATION INSTRUCTIONS:
+${dishName != null ? '- The user identified this as: "$dishName" - use this to guide your food identification and nutrition accuracy' : ''}
 ${plateDiameter != null ? '- The plate/bowl in the image is exactly ${plateDiameter}cm diameter (standard dinner plate = 25-27cm)' : ''}
 ${dishWeight != null ? '- The total weight of food + container is ${dishWeight}g - use this to validate your estimates' : ''}
 - Scale your portion estimates based on these measurements
 - A smaller plate (< 23cm) means smaller portions than they appear
 - A larger plate (> 28cm) means larger portions than typical
 ${dishWeight != null ? '- Your food weight estimates should sum to approximately ${dishWeight}g minus container weight' : ''}
+${dishName != null ? '- When the dish name is provided, prioritize identifying components that match this dish type' : ''}
 
 ''' : '''
 ⚠️ NO MEASUREMENT CONTEXT - Use visual estimation only
@@ -121,6 +128,7 @@ ${dishWeight != null ? '- Your food weight estimates should sum to approximately
 ''';
 
     return '''Analyze this meal photo and identify all visible food items. For each food item, estimate the portion size and calculate detailed nutritional information.
+${dishName != null ? 'The user has identified this dish as: "$dishName". Use this information to improve accuracy of food identification and nutrition estimates.' : ''}
 
 ${context}${calibrationInstructions}
 

@@ -8,12 +8,14 @@ import 'ai_results_screen.dart';
 
 class AIAnalysisFlow extends StatefulWidget {
   final String imagePath;
+  final String? dishName;
   final double? plateDiameter;
   final double? dishWeight;
 
   const AIAnalysisFlow({
     super.key,
     required this.imagePath,
+    this.dishName,
     this.plateDiameter,
     this.dishWeight,
   });
@@ -49,6 +51,7 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
       // Start AI analysis
       final foodItems = await provider.aiService.analyzeMealPhoto(
         widget.imagePath,
+        dishName: widget.dishName,
         plateDiameter: widget.plateDiameter,
         dishWeight: widget.dishWeight,
       );
