@@ -94,6 +94,18 @@ class GoalPeriod {
     return '$start - $end';
   }
 
+  /// Check if this goal period is completely in the future
+  bool get isInFuture {
+    final today = DateTime.now();
+    final normalizedToday = DateTime(today.year, today.month, today.day);
+    final normalizedStart = DateTime(startDate.year, startDate.month, startDate.day);
+    
+    return normalizedStart.isAfter(normalizedToday);
+  }
+
+  /// Check if this goal period can be deleted (only if completely in future)
+  bool get canBeDeleted => isInFuture;
+
   String _formatDate(DateTime date) {
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

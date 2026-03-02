@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../models/nutrition_stats.dart';
 import '../models/nutrition_goals.dart';
+import '../models/goal_period.dart';
 import '../theme/app_theme.dart';
 import 'settings_screen.dart';
 
@@ -594,10 +595,11 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
-        children: provider.goalHistory.take(3).map((goalPeriod) {
+        children: provider.goalHistory.take(5).map((goalPeriod) {
           final isActive = goalPeriod.id == provider.currentGoalPeriod?.id;
+          final canDelete = goalPeriod.canBeDeleted;
           
-          return Container(
+          Widget goalTile = Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isActive ? AppTheme.primary.withAlpha(15) : null,
@@ -640,6 +642,17 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
                           ),
                         ),
                       ],
+                      if (canDelete) ...[
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Future goal • Swipe left to delete',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppTheme.textTertiary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -672,6 +685,46 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
               ],
             ),
           );
+
+          // Wrap future goals with Dismissible for swipe-to-delete
+          if (canDelete) {
+            return Dismissible(
+              key: Key(goalPeriod.id),
+              direction: DismissDirection.endToStart,
+              confirmDismiss: (direction) => _confirmDeleteGoalPeriod(goalPeriod),
+              onDismissed: (direction) => _deleteGoalPeriod(goalPeriod, provider),
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.error,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.delete,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Delete',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              child: goalTile,
+            );
+          }
+
+          return goalTile;
         }).toList(),
       ),
     );
@@ -755,6 +808,103 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save goals: $e'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<bool?> _confirmDeleteGoalPeriod(GoalPeriod goalPeriod) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Goal Period'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete this future goal period?'),
+            const SizedBox(height: 8),
+            Text(
+              'Period: ${goalPeriod.dateRangeString}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (goalPeriod.notes.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Notes: ${goalPeriod.notes}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            const Text(
+              'This action cannot be undone.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.error,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteGoalPeriod(GoalPeriod goalPeriod, NutritionProvider provider) async {
+    try {
+      await provider.deleteGoalPeriod(goalPeriod.id);
+
+      if (mounted) {
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Goal period deleted: ${goalPeriod.dateRangeString}'),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Undo',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Undo not yet implemented'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete goal period: $e'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
           ),

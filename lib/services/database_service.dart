@@ -383,6 +383,9 @@ class DatabaseService {
     String notes, {
     DateTime? endDate,
   }) async {
+    // Validate that this period doesn't overlap with existing ones
+    await _validateGoalPeriodOverlap(startDate, endDate);
+
     const uuid = Uuid();
     final newGoal = GoalPeriod(
       id: uuid.v4(),
@@ -401,6 +404,60 @@ class DatabaseService {
     
     await insertGoalPeriod(newGoal);
     return newGoal;
+  }
+
+  /// Validate that a new goal period doesn't overlap with existing ones
+  Future<void> _validateGoalPeriodOverlap(DateTime startDate, DateTime? endDate) async {
+    final existingGoals = await getGoalPeriods();
+    
+    // Normalize dates to avoid time-of-day issues
+    final normalizedStart = DateTime(startDate.year, startDate.month, startDate.day);
+    final normalizedEnd = endDate != null 
+        ? DateTime(endDate.year, endDate.month, endDate.day)
+        : null;
+
+    for (final existing in existingGoals) {
+      final existingStart = DateTime(existing.startDate.year, existing.startDate.month, existing.startDate.day);
+      final existingEnd = existing.endDate != null 
+          ? DateTime(existing.endDate!.year, existing.endDate!.month, existing.endDate!.day)
+          : null;
+
+      // Check for overlaps
+      bool hasOverlap = false;
+
+      // Case 1: New goal starts on the same day as existing goal
+      if (normalizedStart.isAtSameMomentAs(existingStart)) {
+        hasOverlap = true;
+      }
+      
+      // Case 2: New goal period overlaps with existing period
+      else if (normalizedEnd != null && existingEnd != null) {
+        // Both have end dates - check for any overlap
+        hasOverlap = !(normalizedEnd.isBefore(existingStart) || normalizedStart.isAfter(existingEnd));
+      }
+      
+      // Case 3: New goal is open-ended and starts before existing goal ends
+      else if (normalizedEnd == null && existingEnd != null) {
+        hasOverlap = normalizedStart.isBefore(existingEnd);
+      }
+      
+      // Case 4: Existing goal is open-ended and new goal starts after existing starts
+      else if (normalizedEnd != null && existingEnd == null) {
+        hasOverlap = !(normalizedEnd.isBefore(existingStart) || normalizedStart.isBefore(existingStart));
+      }
+      
+      // Case 5: Both are open-ended
+      else if (normalizedEnd == null && existingEnd == null) {
+        hasOverlap = true; // Can't have two open-ended periods
+      }
+
+      if (hasOverlap) {
+        throw Exception(
+          'Goal period overlaps with existing period (${existing.dateRangeString}). '
+          'Please choose different dates or end the existing period first.'
+        );
+      }
+    }
   }
 
   /// Handle automatic end date management when inserting a new goal period
