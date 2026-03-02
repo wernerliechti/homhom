@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../models/meal.dart';
@@ -33,10 +32,13 @@ class _TimelineScreenState extends State<TimelineScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            SvgPicture.asset(
-              'assets/images/logo.svg',
-              height: 32,
-              width: 32,
+            ClipOval(
+              child: Image.asset(
+                'assets/images/logo.png',
+                height: 32,
+                width: 32,
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(width: 12),
             const Text('HomHom'),

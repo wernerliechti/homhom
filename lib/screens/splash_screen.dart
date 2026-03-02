@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -71,10 +70,13 @@ class _SplashScreenState extends State<SplashScreen>
                 // Logo with scale animation
                 Transform.scale(
                   scale: _scaleAnimation.value,
-                  child: SvgPicture.asset(
-                    'assets/images/logo.svg',
-                    height: 120,
-                    width: 120,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 120,
+                      width: 120,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 
