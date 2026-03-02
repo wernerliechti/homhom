@@ -10,10 +10,7 @@ import 'api_config_screen.dart';
 class PurchaseHomsScreen extends StatefulWidget {
   final bool isPaywall;
 
-  const PurchaseHomsScreen({
-    super.key,
-    this.isPaywall = false,
-  });
+  const PurchaseHomsScreen({super.key, this.isPaywall = false});
 
   @override
   State<PurchaseHomsScreen> createState() => _PurchaseHomsScreenState();
@@ -27,8 +24,8 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: widget.isPaywall ? AppTheme.surface : null,
-      appBar: widget.isPaywall 
-          ? null 
+      appBar: widget.isPaywall
+          ? null
           : AppBar(
               title: const Text('Buy HOMs'),
               backgroundColor: AppTheme.surface,
@@ -52,10 +49,7 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        AppTheme.error.withAlpha(20),
-                        AppTheme.surface,
-                      ],
+                      colors: [AppTheme.error.withAlpha(20), AppTheme.surface],
                     ),
                   ),
                   child: Column(
@@ -114,21 +108,20 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
                   ),
                 ),
               ],
-              
+
               // Pack options
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     children: [
-                      ...HomPack.availablePacks.map((pack) => 
-                        _buildPackCard(pack, provider)),
-                      
+                      ...HomPack.availablePacks.map(
+                        (pack) => _buildPackCard(pack, provider),
+                      ),
+
                       const SizedBox(height: 20),
-                      
+
                       // Or use your own API key
-                      _buildApiKeyOption(),
-                      
                       if (widget.isPaywall) ...[
                         const SizedBox(height: 20),
                         TextButton(
@@ -155,7 +148,7 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
 
   Widget _buildPackCard(HomPack pack, HomProvider provider) {
     final isSelected = _selectedPackId == pack.id;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -169,16 +162,14 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected 
+                color: isSelected
                     ? AppTheme.primary
                     : pack.isPopular
-                        ? AppTheme.secondary.withAlpha(100)
-                        : AppTheme.divider,
+                    ? AppTheme.secondary.withAlpha(100)
+                    : AppTheme.divider,
                 width: isSelected ? 2 : 1,
               ),
-              color: isSelected 
-                  ? AppTheme.primary.withAlpha(10)
-                  : Colors.white,
+              color: isSelected ? AppTheme.primary.withAlpha(10) : Colors.white,
             ),
             child: Row(
               children: [
@@ -201,7 +192,9 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.secondary,
                                 borderRadius: BorderRadius.circular(10),
@@ -240,7 +233,7 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
                     ],
                   ),
                 ),
-                
+
                 // Price and buy button
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -255,11 +248,18 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
                     ),
                     const SizedBox(height: 8),
                     ElevatedButton(
-                      onPressed: _isPurchasing ? null : () => _purchasePack(pack.id, provider),
+                      onPressed: _isPurchasing
+                          ? null
+                          : () => _purchasePack(pack.id, provider),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isSelected ? AppTheme.primary : AppTheme.secondary,
+                        backgroundColor: isSelected
+                            ? AppTheme.primary
+                            : AppTheme.secondary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -282,61 +282,6 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
     );
   }
 
-  Widget _buildApiKeyOption() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.divider),
-        borderRadius: BorderRadius.circular(12),
-        color: AppTheme.surfaceVariant.withAlpha(50),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.key,
-            color: AppTheme.textSecondary,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Use Your Own OpenAI Key',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Get unlimited HOMs with your own API key',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => const ApiConfigScreen(),
-                ),
-              );
-            },
-            child: const Text('Set Up'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _selectPack(String packId) {
     setState(() {
       _selectedPackId = packId;
@@ -350,15 +295,15 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
 
     try {
       await provider.purchaseHomPack(packId);
-      
+
       if (mounted) {
         HapticFeedback.mediumImpact();
-        
+
         if (widget.isPaywall) {
           // Close paywall after successful purchase
           Navigator.of(context).pop(true);
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🎉 HOMs purchased successfully!'),

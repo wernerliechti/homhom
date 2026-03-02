@@ -13,31 +13,8 @@ class NewSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: Colors.yellow,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  'H',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text('HomHom Settings'),
-          ],
-        ),
-        backgroundColor: AppTheme.surface,
+        title: const Text('Settings'),
+        backgroundColor: AppTheme.background,
         elevation: 0,
       ),
       body: Consumer<HomProvider>(
@@ -49,14 +26,14 @@ class NewSettingsScreen extends StatelessWidget {
               children: [
                 // HOM Balance Card
                 _buildHomBalanceCard(homProvider),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Settings Options
                 _buildSettingsOptions(context, homProvider),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // About Section
                 _buildAboutSection(),
               ],
@@ -90,7 +67,7 @@ class NewSettingsScreen extends StatelessWidget {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: balance.isUnlimited 
+                  color: balance.isUnlimited
                       ? AppTheme.success.withAlpha(20)
                       : AppTheme.primary.withAlpha(20),
                   shape: BoxShape.circle,
@@ -98,7 +75,9 @@ class NewSettingsScreen extends StatelessWidget {
                 child: Icon(
                   balance.isUnlimited ? Icons.all_inclusive : Icons.restaurant,
                   size: 30,
-                  color: balance.isUnlimited ? AppTheme.success : AppTheme.primary,
+                  color: balance.isUnlimited
+                      ? AppTheme.success
+                      : AppTheme.primary,
                 ),
               ),
               const SizedBox(width: 16),
@@ -107,7 +86,9 @@ class NewSettingsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      balance.isUnlimited ? 'Unlimited HOMs' : '${balance.balance} HOMs',
+                      balance.isUnlimited
+                          ? 'Unlimited HOMs'
+                          : '${balance.balance} HOMs',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -116,7 +97,7 @@ class NewSettingsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      balance.isUnlimited 
+                      balance.isUnlimited
                           ? 'Using your OpenAI API key'
                           : 'Available meal scans',
                       style: const TextStyle(
@@ -129,7 +110,10 @@ class NewSettingsScreen extends StatelessWidget {
               ),
               if (balance.canScan) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.success.withAlpha(20),
                     borderRadius: BorderRadius.circular(12),
@@ -146,7 +130,10 @@ class NewSettingsScreen extends StatelessWidget {
                 ),
               ] else ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.error.withAlpha(20),
                     borderRadius: BorderRadius.circular(12),
@@ -186,14 +173,14 @@ class NewSettingsScreen extends StatelessWidget {
             );
           },
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // API Configuration
         _buildSettingsTile(
           icon: Icons.key,
           title: 'AI API Config',
-          subtitle: homProvider.isUnlimited 
+          subtitle: homProvider.isUnlimited
               ? 'Using your OpenAI key (unlimited)'
               : 'Set up your own OpenAI API key',
           trailing: Row(
@@ -201,7 +188,10 @@ class NewSettingsScreen extends StatelessWidget {
             children: [
               if (homProvider.isUnlimited) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.success,
                     borderRadius: BorderRadius.circular(10),
@@ -222,9 +212,7 @@ class NewSettingsScreen extends StatelessWidget {
           ),
           onTap: () {
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ApiConfigScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const ApiConfigScreen()),
             );
           },
         ),
@@ -249,11 +237,7 @@ class NewSettingsScreen extends StatelessWidget {
             color: AppTheme.primary.withAlpha(20),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: AppTheme.primary,
-          ),
+          child: Icon(icon, size: 20, color: AppTheme.primary),
         ),
         title: Text(
           title,
@@ -265,10 +249,7 @@ class NewSettingsScreen extends StatelessWidget {
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppTheme.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
         ),
         trailing: trailing,
         onTap: onTap,
@@ -304,11 +285,7 @@ class NewSettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(
-                Icons.camera_alt,
-                size: 16,
-                color: AppTheme.textSecondary,
-              ),
+              Icon(Icons.camera_alt, size: 16, color: AppTheme.textSecondary),
               const SizedBox(width: 8),
               const Text(
                 '1 photo → 1 HOM → 1 logged meal',
