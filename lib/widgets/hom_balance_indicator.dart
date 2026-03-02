@@ -17,8 +17,44 @@ class HomBalanceIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<HomProvider>(
       builder: (context, provider, child) {
-        if (!provider.isInitialized || provider.balance == null) {
-          return const SizedBox.shrink();
+        if (!provider.isInitialized) {
+          return Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 8 : 12,
+              vertical: compact ? 4 : 6,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.grey.withAlpha(50),
+              borderRadius: BorderRadius.circular(compact ? 12 : 16),
+            ),
+            child: Text(
+              'Loading...',
+              style: TextStyle(
+                fontSize: compact ? 10 : 12,
+                color: Colors.grey,
+              ),
+            ),
+          );
+        }
+        
+        if (provider.balance == null) {
+          return Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 8 : 12,
+              vertical: compact ? 4 : 6,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.red.withAlpha(50),
+              borderRadius: BorderRadius.circular(compact ? 12 : 16),
+            ),
+            child: Text(
+              'Error',
+              style: TextStyle(
+                fontSize: compact ? 10 : 12,
+                color: Colors.red,
+              ),
+            ),
+          );
         }
 
         final balance = provider.balance!;

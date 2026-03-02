@@ -38,7 +38,20 @@ class _TimelineScreenState extends State<TimelineScreen> {
         elevation: 0,
         title: Consumer<HomProvider>(
           builder: (context, homProvider, child) {
-            if (!homProvider.isInitialized) return const SizedBox.shrink();
+            // Debug: Always show something to verify provider is working
+            if (!homProvider.isInitialized) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withAlpha(50),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'HOMs: Loading...',
+                  style: TextStyle(fontSize: 12, color: Colors.orange),
+                ),
+              );
+            }
             return const HomBalanceIndicator(compact: true);
           },
         ),
