@@ -17,6 +17,8 @@ class TimelineScreen extends StatefulWidget {
 }
 
 class _TimelineScreenState extends State<TimelineScreen> {
+  bool _showRemaining = false; // Toggle state for consumed vs remaining view
+
   @override
   void initState() {
     super.initState();
@@ -159,41 +161,71 @@ class _TimelineScreenState extends State<TimelineScreen> {
     String unit = 'cal',
   }) {
     final progress = goal > 0 ? (current / goal).clamp(0.0, 1.0) : 0.0;
+    final remaining = (goal - current).clamp(0.0, goal);
+    final remainingProgress = goal > 0 ? (remaining / goal).clamp(0.0, 1.0) : 0.0;
+    
+    // Calculate display values based on toggle state
+    final displayValue = _showRemaining ? remaining.toInt() : current.toInt();
+    final displayProgress = _showRemaining ? remainingProgress : progress;
+    final displayColor = _showRemaining ? color.withAlpha(100) : color;
 
-    return Column(
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 50,
-              height: 50,
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 4,
-                backgroundColor: color.withAlpha(50),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showRemaining = !_showRemaining;
+        });
+      },
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 50,
+                height: 50,
+                child: CircularProgressIndicator(
+                  value: displayProgress,
+                  strokeWidth: 4,
+                  backgroundColor: color.withAlpha(50),
+                  valueColor: AlwaysStoppedAnimation<Color>(displayColor),
+                ),
               ),
-            ),
-            Text(
-              current.toInt().toString(),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: color,
+              Text(
+                displayValue.toString(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _showRemaining ? AppTheme.textSecondary : color,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppTheme.textTertiary,
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+              if (_showRemaining) ...[
+                const SizedBox(width: 2),
+                Text(
+                  'left',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: AppTheme.textTertiary.withAlpha(150),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
