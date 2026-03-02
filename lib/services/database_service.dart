@@ -386,27 +386,55 @@ class DatabaseService {
     // Validate that this period doesn't overlap with existing ones
     await _validateGoalPeriodOverlap(startDate, endDate);
 
+    // Get existing goal periods to determine proper end date
+    final existingGoals = await getGoalPeriods();
+    
+    // Determine the correct end date for the new goal
+    DateTime? finalEndDate = endDate;
+    if (finalEndDate == null) {
+      // Find the next goal that starts after this one
+      final futureGoals = existingGoals
+          .where((g) => g.startDate.isAfter(startDate))
+          .toList();
+      
+      if (futureGoals.isNotEmpty) {
+        // Sort by start date and take the earliest
+        futureGoals.sort((a, b) => a.startDate.compareTo(b.startDate));
+        finalEndDate = futureGoals.first.startDate;
+      }
+      // If no future goals, leave end date as null (open-ended)
+    }
+
     const uuid = Uuid();
     final newGoal = GoalPeriod(
       id: uuid.v4(),
       startDate: startDate,
-      endDate: endDate,
+      endDate: finalEndDate,
       goals: goals,
       notes: notes,
       createdAt: DateTime.now(),
     );
 
-    // Get existing goal periods to manage overlaps
-    final existingGoals = await getGoalPeriods();
+    // Update any existing open-ended goal that should end when this starts
+    final previousGoals = existingGoals
+        .where((g) => g.startDate.isBefore(startDate) && g.endDate == null)
+        .toList();
     
-    // Handle automatic end date setting for previous goals
-    await _handleGoalPeriodInsertion(existingGoals, newGoal);
-    
+    if (previousGoals.isNotEmpty) {
+      // Sort by start date and take the latest (most recent)
+      previousGoals.sort((a, b) => b.startDate.compareTo(a.startDate));
+      final previousGoal = previousGoals.first;
+      
+      final updatedPreviousGoal = previousGoal.copyWith(endDate: startDate);
+      await updateGoalPeriod(updatedPreviousGoal);
+    }
+
     await insertGoalPeriod(newGoal);
     return newGoal;
   }
 
   /// Validate that a new goal period doesn't overlap with existing ones
+  /// Only checks for explicit overlaps with goals that have both start and end dates
   Future<void> _validateGoalPeriodOverlap(DateTime startDate, DateTime? endDate) async {
     final existingGoals = await getGoalPeriods();
     
@@ -422,64 +450,36 @@ class DatabaseService {
           ? DateTime(existing.endDate!.year, existing.endDate!.month, existing.endDate!.day)
           : null;
 
-      // Check for overlaps
-      bool hasOverlap = false;
-
-      // Case 1: New goal starts on the same day as existing goal
+      // Only validate against goals that have explicit end dates
+      // Open-ended goals will be automatically managed
+      if (existingEnd != null && normalizedEnd != null) {
+        // Both have end dates - check for overlap
+        bool hasOverlap = !(normalizedEnd.isBefore(existingStart) || 
+                           normalizedStart.isAtSameMomentAs(existingEnd) || 
+                           normalizedStart.isAfter(existingEnd));
+        
+        if (hasOverlap) {
+          throw Exception(
+            'Goal period overlaps with existing period (${existing.dateRangeString}). '
+            'Please choose different dates that don\'t conflict.'
+          );
+        }
+      }
+      
+      // Check for duplicate start dates (not allowed)
       if (normalizedStart.isAtSameMomentAs(existingStart)) {
-        hasOverlap = true;
-      }
-      
-      // Case 2: New goal period overlaps with existing period
-      else if (normalizedEnd != null && existingEnd != null) {
-        // Both have end dates - check for any overlap
-        hasOverlap = !(normalizedEnd.isBefore(existingStart) || normalizedStart.isAfter(existingEnd));
-      }
-      
-      // Case 3: New goal is open-ended and starts before existing goal ends
-      else if (normalizedEnd == null && existingEnd != null) {
-        hasOverlap = normalizedStart.isBefore(existingEnd);
-      }
-      
-      // Case 4: Existing goal is open-ended and new goal starts after existing starts
-      else if (normalizedEnd != null && existingEnd == null) {
-        hasOverlap = !(normalizedEnd.isBefore(existingStart) || normalizedStart.isBefore(existingStart));
-      }
-      
-      // Case 5: Both are open-ended
-      else if (normalizedEnd == null && existingEnd == null) {
-        hasOverlap = true; // Can't have two open-ended periods
-      }
-
-      if (hasOverlap) {
         throw Exception(
-          'Goal period overlaps with existing period (${existing.dateRangeString}). '
-          'Please choose different dates or end the existing period first.'
+          'A goal period already starts on ${_formatDate(startDate)}. '
+          'Please choose a different start date.'
         );
       }
     }
   }
 
-  /// Handle automatic end date management when inserting a new goal period
-  Future<void> _handleGoalPeriodInsertion(List<GoalPeriod> existingGoals, GoalPeriod newGoal) async {
-    // Sort existing goals by start date
-    existingGoals.sort((a, b) => a.startDate.compareTo(b.startDate));
-
-    // Find goals that need their end dates updated
-    for (final existingGoal in existingGoals) {
-      // If existing goal starts before the new goal and doesn't have an end date
-      if (existingGoal.startDate.isBefore(newGoal.startDate) && existingGoal.endDate == null) {
-        // Set its end date to the new goal's start date
-        final updatedGoal = existingGoal.copyWith(endDate: newGoal.startDate);
-        await updateGoalPeriod(updatedGoal);
-      }
-      
-      // If existing goal starts after the new goal and the new goal doesn't have an end date
-      if (existingGoal.startDate.isAfter(newGoal.startDate) && newGoal.endDate == null) {
-        // The new goal's end date will be set to the existing goal's start date
-        // (This is handled when inserting the new goal)
-      }
-    }
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   // Statistics calculations
