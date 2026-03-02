@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'providers/nutrition_provider.dart';
+import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() {
@@ -20,7 +21,11 @@ class HomHomApp extends StatelessWidget {
         title: 'HomHom',
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
-        home: const HomeScreen(),
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const SplashScreen(),
+          '/home': (context) => const HomeScreen(),
+        },
       ),
     );
   }

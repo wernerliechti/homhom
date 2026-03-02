@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../models/meal.dart';
@@ -30,7 +31,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Timeline'),
+        title: Row(
+          children: [
+            SvgPicture.asset(
+              'assets/images/logo.svg',
+              height: 32,
+              width: 32,
+            ),
+            const SizedBox(width: 12),
+            const Text('HomHom'),
+          ],
+        ),
         backgroundColor: AppTheme.surface,
         elevation: 0,
         actions: [
