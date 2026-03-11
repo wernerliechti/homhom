@@ -345,15 +345,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const Spacer(),
-              if (_isEditing)
-                const Text(
-                  'Tap values to edit',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textTertiary,
-                  ),
-                ),
+
             ],
           ),
           const SizedBox(height: 16),
@@ -414,63 +406,48 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     String unit, {
     bool fullWidth = false,
   }) {
-    return InkWell(
-      onTap: _isEditing ? () => _showEditDialog(label, controller, unit) : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withAlpha(15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _isEditing ? color.withAlpha(100) : color.withAlpha(50),
-            width: _isEditing ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: fullWidth ? MainAxisAlignment.start : MainAxisAlignment.center,
-              children: [
-                Text(
-                  controller.text,
-                  style: TextStyle(
-                    fontSize: fullWidth ? 18 : 20,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withAlpha(15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Column(
+        crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: fullWidth ? MainAxisAlignment.start : MainAxisAlignment.center,
+            children: [
+              Text(
+                controller.text,
+                style: TextStyle(
+                  fontSize: fullWidth ? 18 : 20,
+                  fontWeight: FontWeight.w700,
+                  color: color,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  unit,
-                  style: TextStyle(
-                    fontSize: fullWidth ? 12 : 10,
-                    fontWeight: FontWeight.w500,
-                    color: color,
-                  ),
-                ),
-                if (_isEditing) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.edit,
-                    size: fullWidth ? 16 : 14,
-                    color: color.withAlpha(150),
-                  ),
-                ],
-              ],
-            ),
-            if (!fullWidth) const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: fullWidth ? 14 : 12,
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
               ),
+              const SizedBox(width: 4),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: fullWidth ? 12 : 10,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          if (!fullWidth) const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: fullWidth ? 14 : 12,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -839,85 +816,127 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     final originalWeight = food.estimatedWeight;
     final weightChanged = (editedWeight - originalWeight).abs() > 0.1;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _showFoodItemEditDialog(food),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.primary.withAlpha(30)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        border: Border.all(color: AppTheme.primary.withAlpha(30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Weight adjustment row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Tap to edit • Weight & Macros',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primary,
-                    ),
+              // Minus button
+              Material(
+                color: AppTheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(6),
+                child: InkWell(
+                  onTap: () => _adjustFoodWeight(food.id, -10),
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Icon(Icons.remove, size: 18, color: AppTheme.primary),
                   ),
-                  const Icon(Icons.edit, size: 14, color: AppTheme.primary),
-                ],
+                ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+              const SizedBox(width: 12),
+              // Weight column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${editedWeight.toStringAsFixed(0)}g',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const Text(
+                      'Weight',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    if (weightChanged) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        '${editedWeight.toStringAsFixed(0)}g',
+                        'AI: ${originalWeight.toStringAsFixed(0)}g',
                         style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
+                          fontSize: 9,
+                          color: AppTheme.textTertiary,
                         ),
                       ),
-                      const Text(
-                        'Weight',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                      if (weightChanged) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'AI: ${originalWeight.toStringAsFixed(0)}g',
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: AppTheme.textTertiary,
-                          ),
-                        ),
-                      ],
                     ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Plus button
+              Material(
+                color: AppTheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(6),
+                child: InkWell(
+                  onTap: () => _adjustFoodWeight(food.id, 10),
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Icon(Icons.add, size: 18, color: AppTheme.primary),
                   ),
-                  Row(
-                    children: [
-                      _buildMacroTag('Cal', editedNutrition.calories.toInt().toString(), AppTheme.calories),
-                      const SizedBox(width: 6),
-                      _buildMacroTag('P', editedNutrition.protein.toStringAsFixed(1), AppTheme.protein),
-                      const SizedBox(width: 6),
-                      _buildMacroTag('C', editedNutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
-                      const SizedBox(width: 6),
-                      _buildMacroTag('F', editedNutrition.fat.toStringAsFixed(1), AppTheme.fat),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+          // Nutrient breakdown and edit button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  _buildMacroTag('Cal', editedNutrition.calories.toInt().toString(), AppTheme.calories),
+                  const SizedBox(width: 6),
+                  _buildMacroTag('P', editedNutrition.protein.toStringAsFixed(1), AppTheme.protein),
+                  const SizedBox(width: 6),
+                  _buildMacroTag('C', editedNutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
+                  const SizedBox(width: 6),
+                  _buildMacroTag('F', editedNutrition.fat.toStringAsFixed(1), AppTheme.fat),
+                ],
+              ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showFoodItemEditDialog(food),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.edit, size: 14, color: AppTheme.primary),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'Edit',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

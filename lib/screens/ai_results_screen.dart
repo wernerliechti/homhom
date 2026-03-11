@@ -193,7 +193,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               Icon(Icons.analytics, color: AppTheme.primary, size: 20),
               SizedBox(width: 8),
               Text(
-                'Meal Total (Read-Only)',
+                'Meal Total',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -324,7 +324,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               Icon(Icons.restaurant, color: AppTheme.primary, size: 20),
               SizedBox(width: 8),
               Text(
-                'Identified Foods (Editable)',
+                'Identified Foods',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -373,64 +373,99 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
             color: AppTheme.surfaceVariant.withAlpha(50),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: _getConfidenceColor(food.confidence),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      food.name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(top: 3),
+                    decoration: BoxDecoration(
+                      color: _getConfidenceColor(food.confidence),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${food.portionDescription} • ${food.confidenceText} confidence',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    if (food.description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        food.description,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.textTertiary,
-                          fontStyle: FontStyle.italic,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          food.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${food.portionDescription} • ${food.confidenceText} confidence',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        if (food.description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            food.description,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textTertiary,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildLargeNutrientTag('Cal', food.nutrition.calories.toInt().toString(), AppTheme.calories),
+                          const SizedBox(width: 6),
+                          _buildLargeNutrientTag('P', food.nutrition.protein.toStringAsFixed(1), AppTheme.protein),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildLargeNutrientTag('C', food.nutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
+                          const SizedBox(width: 6),
+                          _buildLargeNutrientTag('F', food.nutrition.fat.toStringAsFixed(1), AppTheme.fat),
+                        ],
                       ),
                     ],
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _buildMacroTag('Cal', food.nutrition.calories.toInt().toString(), AppTheme.calories),
-                        const SizedBox(width: 6),
-                        _buildMacroTag('P', food.nutrition.protein.toStringAsFixed(1), AppTheme.protein),
-                        const SizedBox(width: 6),
-                        _buildMacroTag('C', food.nutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
-                        const SizedBox(width: 6),
-                        _buildMacroTag('F', food.nutrition.fat.toStringAsFixed(1), AppTheme.fat),
-                      ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.edit, size: 14, color: AppTheme.primary),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Edit',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.edit, size: 16, color: AppTheme.primary),
             ],
           ),
         ),
@@ -455,12 +490,13 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
-  Widget _buildMacroTag(String label, String value, Color color) {
+  Widget _buildLargeNutrientTag(String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withAlpha(50)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -468,7 +504,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: color,
             ),
@@ -476,8 +512,9 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 8,
+              fontSize: 10,
               color: color,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
