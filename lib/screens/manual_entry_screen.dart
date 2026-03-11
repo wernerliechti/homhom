@@ -592,6 +592,8 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
               border: InputBorder.none,
               contentPadding: EdgeInsets.zero,
               isDense: true,
+              filled: true,
+              fillColor: color.withAlpha(25),
               suffix: fullWidth ? null : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -865,6 +867,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             content: Text('🍽️ Food item saved successfully!'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -887,6 +890,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         content: Text(message),
         backgroundColor: AppTheme.error,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
