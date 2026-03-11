@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/food_item.dart';
@@ -35,6 +37,8 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   late NutritionData _totalNutrition;
   bool _isSaving = false;
   DateTime _selectedMealTime = DateTime.now();
+  String? _selectedImagePath;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -123,6 +127,13 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
           children: [
             _buildHeader(),
             const SizedBox(height: 24),
+            if (_selectedImagePath != null) ...[
+              _buildPhotoPreview(),
+              const SizedBox(height: 24),
+            ] else ...[
+              _buildImagePicker(),
+              const SizedBox(height: 24),
+            ],
             _buildFoodInfoCard(),
             const SizedBox(height: 24),
             _buildNutritionSummary(),
@@ -193,6 +204,159 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagePicker() {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.photo, color: AppTheme.primary, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Optional Photo',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildImageButton(
+                        icon: Icons.camera_alt,
+                        title: 'Take Photo',
+                        onTap: _captureFromCamera,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildImageButton(
+                        icon: Icons.photo_library,
+                        title: 'Choose Photo',
+                        onTap: _selectFromGallery,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageButton({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: AppTheme.surfaceVariant,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.divider),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: AppTheme.primary, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoPreview() {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.photo, color: AppTheme.primary, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Your Meal',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(16),
+              bottomRight: Radius.circular(16),
+            ),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Image.file(
+                File(_selectedImagePath!),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: AppTheme.surfaceVariant,
+                    child: const Center(
+                      child: Icon(Icons.error, color: AppTheme.error, size: 32),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Center(
+              child: TextButton.icon(
+                onPressed: _clearImage,
+                icon: const Icon(Icons.close, size: 18),
+                label: const Text('Change Photo'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.textSecondary,
                 ),
               ),
             ),
@@ -543,6 +707,41 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     );
   }
 
+  Future<void> _captureFromCamera() async {
+    await _pickImage(ImageSource.camera);
+  }
+
+  Future<void> _selectFromGallery() async {
+    await _pickImage(ImageSource.gallery);
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 2048,
+        maxHeight: 2048,
+      );
+
+      if (image == null) return;
+
+      setState(() {
+        _selectedImagePath = image.path;
+      });
+    } catch (e) {
+      if (mounted) {
+        _showError('Failed to pick image: $e');
+      }
+    }
+  }
+
+  void _clearImage() {
+    setState(() {
+      _selectedImagePath = null;
+    });
+  }
+
   void _showEditDialog(String label, TextEditingController controller, String unit) {
     final tempController = TextEditingController(text: controller.text);
 
@@ -671,7 +870,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
       // Save meal with manual entry
       await provider.saveMealWithAnalysis(
-        null, // No image for manual entry
+        _selectedImagePath, // Optional image
         [foodItem],
         analysisMetadata: {
           'entryMethod': 'manual',

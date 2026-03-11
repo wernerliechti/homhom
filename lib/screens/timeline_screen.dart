@@ -418,17 +418,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         if (hasAnalysis) ...[
                           Row(
                             children: [
-                              const Icon(
-                                Icons.auto_awesome,
+                              Icon(
+                                _isManualEntry(meal) ? Icons.edit_note : Icons.auto_awesome,
                                 size: 14,
-                                color: AppTheme.success,
+                                color: _isManualEntry(meal) ? AppTheme.secondary : AppTheme.success,
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'AI Analyzed • ${meal.foodItems.length} food${meal.foodItems.length == 1 ? '' : 's'}',
-                                style: const TextStyle(
+                                _isManualEntry(meal)
+                                    ? 'Manual Entry • ${meal.foodItems.length} food${meal.foodItems.length == 1 ? '' : 's'}'
+                                    : 'AI Analyzed • ${meal.foodItems.length} food${meal.foodItems.length == 1 ? '' : 's'}',
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: AppTheme.success,
+                                  color: _isManualEntry(meal) ? AppTheme.secondary : AppTheme.success,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -699,5 +701,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
         );
       }
     }
+  }
+
+  bool _isManualEntry(Meal meal) {
+    final entryMethod = meal.analysisMetadata?['entryMethod'] as String?;
+    return entryMethod == 'manual';
   }
 }
