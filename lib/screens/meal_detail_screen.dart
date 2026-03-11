@@ -26,6 +26,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   bool _isEditing = false;
   bool _isSaving = false;
 
+  // Track edited weights per food item (foodItemId -> newWeight)
+  Map<String, double> _editedWeights = {};
+
   // Controllers for nutrition editing
   late TextEditingController _caloriesController;
   late TextEditingController _proteinController;
@@ -37,12 +40,45 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   void initState() {
     super.initState();
     _currentMeal = widget.meal;
+    _initializeEditedWeights();
     _calculateTotalNutrition();
     _initializeControllers();
   }
 
+  void _initializeEditedWeights() {
+    _editedWeights = {};
+    for (var food in _currentMeal.foodItems) {
+      _editedWeights[food.id] = food.estimatedWeight;
+    }
+  }
+
   void _calculateTotalNutrition() {
-    _totalNutrition = _currentMeal.totalNutrition;
+    // If weights are edited, recalculate totals; otherwise use meal's total
+    if (_editedWeights.values.any((w) => w != _currentMeal.foodItems.firstWhere((f) => _editedWeights[f.id] == w).estimatedWeight)) {
+      _totalNutrition = NutritionData.zero;
+      for (var food in _currentMeal.foodItems) {
+        final editedWeight = _editedWeights[food.id] ?? food.estimatedWeight;
+        final foodNutrition = food.getNutritionForWeight(editedWeight);
+        _totalNutrition = _totalNutrition + foodNutrition;
+      }
+    } else {
+      _totalNutrition = _currentMeal.totalNutrition;
+    }
+  }
+
+  void _recalculateTotals() {
+    setState(() {
+      _calculateTotalNutrition();
+      _updateControllers();
+    });
+  }
+
+  void _updateControllers() {
+    _caloriesController.text = _totalNutrition.calories.toStringAsFixed(0);
+    _proteinController.text = _totalNutrition.protein.toStringAsFixed(1);
+    _carbsController.text = _totalNutrition.carbs.toStringAsFixed(1);
+    _fatController.text = _totalNutrition.fat.toStringAsFixed(1);
+    _fiberController.text = (_totalNutrition.fiber ?? 0).toStringAsFixed(1);
   }
 
   void _initializeControllers() {
@@ -462,78 +498,91 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
           const SizedBox(height: 16),
           
           ..._currentMeal.foodItems.map((food) {
+            final editedWeight = _editedWeights[food.id] ?? food.estimatedWeight;
+            final editedNutrition = food.getNutritionForWeight(editedWeight);
+            final weightChanged = (editedWeight - food.estimatedWeight).abs() > 0.1;
+
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppTheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
+                border: weightChanged ? Border.all(color: AppTheme.secondary, width: 1.5) : null,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _getConfidenceColor(food.confidence),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          food.name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _getConfidenceColor(food.confidence),
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${food.portionDescription} • ${food.confidenceText} confidence',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              food.name,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${food.confidenceText} confidence',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            if (food.description.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                food.description,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textTertiary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        if (food.description.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
                           Text(
-                            food.description,
+                            '${editedNutrition.calories.toInt()}',
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.calories,
+                            ),
+                          ),
+                          const Text(
+                            'cal',
+                            style: TextStyle(
+                              fontSize: 10,
                               color: AppTheme.textTertiary,
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${food.nutrition.calories.toInt()}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.calories,
-                        ),
-                      ),
-                      const Text(
-                        'cal',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.textTertiary,
-                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  // Weight editor
+                  _buildWeightEditor(food, editedWeight, editedNutrition),
                 ],
               ),
             );
@@ -643,8 +692,22 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     try {
       final provider = context.read<NutritionProvider>();
       
-      // Create updated food items with adjusted nutrition
-      final adjustedFoodItems = _adjustFoodItemNutrition();
+      // Create updated food items with edited weights
+      List<FoodItem> updatedFoodItems = _currentMeal.foodItems.map((food) {
+        final editedWeight = _editedWeights[food.id] ?? food.estimatedWeight;
+        if ((editedWeight - food.estimatedWeight).abs() > 0.1) {
+          // Weight was edited - update it and recalculate nutrition
+          final editedNutrition = food.getNutritionForWeight(editedWeight);
+          return food.copyWith(
+            estimatedWeight: editedWeight,
+            nutrition: editedNutrition,
+          );
+        }
+        return food;
+      }).toList();
+
+      // Create adjusted food items (for any direct nutrition edits)
+      final adjustedFoodItems = _adjustFoodItemsWithEdits(updatedFoodItems);
       
       // Update the meal
       final updatedMeal = _currentMeal.copyWith(
@@ -652,6 +715,11 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
         analysisMetadata: {
           ..._currentMeal.analysisMetadata ?? {},
           'lastEditedAt': DateTime.now().toIso8601String(),
+          'weightEdits': {
+            for (var entry in _editedWeights.entries)
+              if ((entry.value - _currentMeal.foodItems.firstWhere((f) => f.id == entry.key).estimatedWeight).abs() > 0.1)
+                entry.key: entry.value,
+          },
           'editedTotal': _totalNutrition.toMap(),
         },
       );
@@ -716,6 +784,231 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       
       return food.copyWith(nutrition: adjustedNutrition);
     }).toList();
+  }
+
+  List<FoodItem> _adjustFoodItemsWithEdits(List<FoodItem> foodItems) {
+    // If weights were edited, the nutrition is already recalculated
+    // This method just returns them as-is
+    // But if user also edited macros in the summary, we would apply those adjustments here
+    return foodItems;
+  }
+
+  void _updateFoodWeight(String foodId, double newWeight) {
+    if (newWeight <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Weight must be greater than 0'),
+          backgroundColor: AppTheme.error,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _editedWeights[foodId] = newWeight;
+      _recalculateTotals();
+    });
+  }
+
+  void _adjustFoodWeight(String foodId, int delta) {
+    final current = _editedWeights[foodId] ?? 0;
+    final newWeight = (current + delta).clamp(10, 10000).toDouble();
+    _updateFoodWeight(foodId, newWeight);
+  }
+
+  void _resetFoodWeight(String foodId) {
+    final originalFood = _currentMeal.foodItems.firstWhere((f) => f.id == foodId);
+    setState(() {
+      _editedWeights[foodId] = originalFood.estimatedWeight;
+      _recalculateTotals();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Reset to AI estimate'),
+        backgroundColor: AppTheme.secondary,
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildWeightEditor(FoodItem food, double editedWeight, NutritionData editedNutrition) {
+    final originalWeight = food.estimatedWeight;
+    final weightChanged = (editedWeight - originalWeight).abs() > 0.1;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Weight',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              if (weightChanged)
+                Text(
+                  'AI: ${originalWeight.toStringAsFixed(0)}g',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              // Minus button
+              Material(
+                color: AppTheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(6),
+                child: InkWell(
+                  onTap: () => _adjustFoodWeight(food.id, -10),
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Icon(Icons.remove, size: 18, color: AppTheme.primary),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Weight input field
+              Expanded(
+                child: TextField(
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    suffixText: 'g',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: AppTheme.divider),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: AppTheme.divider),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    isDense: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,1}$')),
+                  ],
+                  onChanged: (value) {
+                    final newWeight = double.tryParse(value);
+                    if (newWeight != null && newWeight > 0) {
+                      _updateFoodWeight(food.id, newWeight);
+                    }
+                  },
+                  controller: TextEditingController(text: editedWeight.toStringAsFixed(1))
+                    ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: editedWeight.toStringAsFixed(1).length),
+                    ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Plus button
+              Material(
+                color: AppTheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(6),
+                child: InkWell(
+                  onTap: () => _adjustFoodWeight(food.id, 10),
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Icon(Icons.add, size: 18, color: AppTheme.primary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Macros
+              Expanded(
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildMacroTag('P', editedNutrition.protein.toStringAsFixed(1), AppTheme.protein),
+                        _buildMacroTag('C', editedNutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
+                        _buildMacroTag('F', editedNutrition.fat.toStringAsFixed(1), AppTheme.fat),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Reset button
+              if (weightChanged)
+                TextButton.icon(
+                  onPressed: () => _resetFoodWeight(food.id),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text(
+                    'Reset',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.secondary,
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMacroTag(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _getMealTypeDisplay() {
