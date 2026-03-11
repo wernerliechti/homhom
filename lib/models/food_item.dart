@@ -86,4 +86,41 @@ class FoodItem {
     }
     return '${grams}g';
   }
+
+  /// Get nutrition per gram for scaling
+  NutritionData get nutritionPer1g {
+    if (estimatedWeight <= 0) return NutritionData.zero;
+    return NutritionData(
+      calories: nutrition.calories / estimatedWeight,
+      protein: nutrition.protein / estimatedWeight,
+      carbs: nutrition.carbs / estimatedWeight,
+      fat: nutrition.fat / estimatedWeight,
+      fiber: nutrition.fiber != null ? nutrition.fiber! / estimatedWeight : null,
+      sugar: nutrition.sugar != null ? nutrition.sugar! / estimatedWeight : null,
+      sodium: nutrition.sodium != null ? nutrition.sodium! / estimatedWeight : null,
+      vitaminC: nutrition.vitaminC != null ? nutrition.vitaminC! / estimatedWeight : null,
+      calcium: nutrition.calcium != null ? nutrition.calcium! / estimatedWeight : null,
+      iron: nutrition.iron != null ? nutrition.iron! / estimatedWeight : null,
+    );
+  }
+
+  /// Calculate nutrition for a given weight
+  NutritionData getNutritionForWeight(double newWeightG) {
+    if (newWeightG <= 0) return NutritionData.zero;
+    if (estimatedWeight <= 0) return nutrition; // Fallback if original weight invalid
+    
+    final perGram = nutritionPer1g;
+    return NutritionData(
+      calories: perGram.calories * newWeightG,
+      protein: perGram.protein * newWeightG,
+      carbs: perGram.carbs * newWeightG,
+      fat: perGram.fat * newWeightG,
+      fiber: perGram.fiber != null ? perGram.fiber! * newWeightG : null,
+      sugar: perGram.sugar != null ? perGram.sugar! * newWeightG : null,
+      sodium: perGram.sodium != null ? perGram.sodium! * newWeightG : null,
+      vitaminC: perGram.vitaminC != null ? perGram.vitaminC! * newWeightG : null,
+      calcium: perGram.calcium != null ? perGram.calcium! * newWeightG : null,
+      iron: perGram.iron != null ? perGram.iron! * newWeightG : null,
+    );
+  }
 }

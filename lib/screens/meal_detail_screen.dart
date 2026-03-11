@@ -23,8 +23,10 @@ class MealDetailScreen extends StatefulWidget {
 class _MealDetailScreenState extends State<MealDetailScreen> {
   late Meal _currentMeal;
   late NutritionData _totalNutrition;
-  bool _isEditing = false;
   bool _isSaving = false;
+
+  // Track edited weights per food item (foodItemId -> newWeight)
+  Map<String, double> _editedWeights = {};
 
   // Controllers for nutrition editing
   late TextEditingController _caloriesController;
@@ -37,12 +39,45 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   void initState() {
     super.initState();
     _currentMeal = widget.meal;
+    _initializeEditedWeights();
     _calculateTotalNutrition();
     _initializeControllers();
   }
 
+  void _initializeEditedWeights() {
+    _editedWeights = {};
+    for (var food in _currentMeal.foodItems) {
+      _editedWeights[food.id] = food.estimatedWeight;
+    }
+  }
+
   void _calculateTotalNutrition() {
-    _totalNutrition = _currentMeal.totalNutrition;
+    // If weights are edited, recalculate totals; otherwise use meal's total
+    if (_editedWeights.values.any((w) => w != _currentMeal.foodItems.firstWhere((f) => _editedWeights[f.id] == w).estimatedWeight)) {
+      _totalNutrition = NutritionData.zero;
+      for (var food in _currentMeal.foodItems) {
+        final editedWeight = _editedWeights[food.id] ?? food.estimatedWeight;
+        final foodNutrition = food.getNutritionForWeight(editedWeight);
+        _totalNutrition = _totalNutrition + foodNutrition;
+      }
+    } else {
+      _totalNutrition = _currentMeal.totalNutrition;
+    }
+  }
+
+  void _recalculateTotals() {
+    setState(() {
+      _calculateTotalNutrition();
+      _updateControllers();
+    });
+  }
+
+  void _updateControllers() {
+    _caloriesController.text = _totalNutrition.calories.toStringAsFixed(0);
+    _proteinController.text = _totalNutrition.protein.toStringAsFixed(1);
+    _carbsController.text = _totalNutrition.carbs.toStringAsFixed(1);
+    _fatController.text = _totalNutrition.fat.toStringAsFixed(1);
+    _fiberController.text = (_totalNutrition.fiber ?? 0).toStringAsFixed(1);
   }
 
   void _initializeControllers() {
@@ -51,33 +86,20 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     _carbsController = TextEditingController(text: _totalNutrition.carbs.toStringAsFixed(1));
     _fatController = TextEditingController(text: _totalNutrition.fat.toStringAsFixed(1));
     _fiberController = TextEditingController(text: (_totalNutrition.fiber ?? 0).toStringAsFixed(1));
-
-    // Listen for changes
-    _caloriesController.addListener(_onNutritionChanged);
-    _proteinController.addListener(_onNutritionChanged);
-    _carbsController.addListener(_onNutritionChanged);
-    _fatController.addListener(_onNutritionChanged);
-    _fiberController.addListener(_onNutritionChanged);
   }
 
-  void _onNutritionChanged() {
-    if (!_isEditing) return;
-
-    final calories = double.tryParse(_caloriesController.text) ?? 0;
-    final protein = double.tryParse(_proteinController.text) ?? 0;
-    final carbs = double.tryParse(_carbsController.text) ?? 0;
-    final fat = double.tryParse(_fatController.text) ?? 0;
-    final fiber = double.tryParse(_fiberController.text) ?? 0;
-
-    setState(() {
-      _totalNutrition = NutritionData(
-        calories: calories,
-        protein: protein,
-        carbs: carbs,
-        fat: fat,
-        fiber: fiber,
-      );
-    });
+  bool _hasUnsavedChanges() {
+    for (var entry in _editedWeights.entries) {
+      try {
+        final originalFood = _currentMeal.foodItems.firstWhere((f) => f.id == entry.key);
+        if ((entry.value - originalFood.estimatedWeight).abs() > 0.1) {
+          return true;
+        }
+      } catch (e) {
+        // Food item not found, skip
+      }
+    }
+    return false;
   }
 
   @override
@@ -97,19 +119,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
         title: Text(_getMealTypeDisplay()),
         backgroundColor: AppTheme.surface,
         elevation: 0,
-        actions: [
-          if (!_isEditing)
-            IconButton(
-              onPressed: _startEditing,
-              icon: const Icon(Icons.edit),
-              tooltip: 'Edit meal',
-            ),
-          if (_isEditing)
-            TextButton(
-              onPressed: _cancelEditing,
-              child: const Text('Cancel'),
-            ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -125,7 +134,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               const SizedBox(height: 24),
               _buildFoodItemsSection(),
             ],
-            if (_isEditing) ...[
+            if (_hasUnsavedChanges()) ...[
               const SizedBox(height: 32),
               _buildEditingActions(),
             ],
@@ -309,15 +318,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const Spacer(),
-              if (_isEditing)
-                const Text(
-                  'Tap values to edit',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textTertiary,
-                  ),
-                ),
+
             ],
           ),
           const SizedBox(height: 16),
@@ -378,63 +379,48 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     String unit, {
     bool fullWidth = false,
   }) {
-    return InkWell(
-      onTap: _isEditing ? () => _showEditDialog(label, controller, unit) : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withAlpha(15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _isEditing ? color.withAlpha(100) : color.withAlpha(50),
-            width: _isEditing ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: fullWidth ? MainAxisAlignment.start : MainAxisAlignment.center,
-              children: [
-                Text(
-                  controller.text,
-                  style: TextStyle(
-                    fontSize: fullWidth ? 18 : 20,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withAlpha(15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Column(
+        crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: fullWidth ? MainAxisAlignment.start : MainAxisAlignment.center,
+            children: [
+              Text(
+                controller.text,
+                style: TextStyle(
+                  fontSize: fullWidth ? 18 : 20,
+                  fontWeight: FontWeight.w700,
+                  color: color,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  unit,
-                  style: TextStyle(
-                    fontSize: fullWidth ? 12 : 10,
-                    fontWeight: FontWeight.w500,
-                    color: color,
-                  ),
-                ),
-                if (_isEditing) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.edit,
-                    size: fullWidth ? 16 : 14,
-                    color: color.withAlpha(150),
-                  ),
-                ],
-              ],
-            ),
-            if (!fullWidth) const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: fullWidth ? 14 : 12,
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
               ),
+              const SizedBox(width: 4),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: fullWidth ? 12 : 10,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          if (!fullWidth) const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: fullWidth ? 14 : 12,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -462,78 +448,91 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
           const SizedBox(height: 16),
           
           ..._currentMeal.foodItems.map((food) {
+            final editedWeight = _editedWeights[food.id] ?? food.estimatedWeight;
+            final editedNutrition = food.getNutritionForWeight(editedWeight);
+            final weightChanged = (editedWeight - food.estimatedWeight).abs() > 0.1;
+
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppTheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
+                border: weightChanged ? Border.all(color: AppTheme.secondary, width: 1.5) : null,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _getConfidenceColor(food.confidence),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          food.name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _getConfidenceColor(food.confidence),
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${food.portionDescription} • ${food.confidenceText} confidence',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              food.name,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${food.confidenceText} confidence',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            if (food.description.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                food.description,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textTertiary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        if (food.description.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
                           Text(
-                            food.description,
+                            '${editedNutrition.calories.toInt()}',
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.calories,
+                            ),
+                          ),
+                          const Text(
+                            'cal',
+                            style: TextStyle(
+                              fontSize: 10,
                               color: AppTheme.textTertiary,
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${food.nutrition.calories.toInt()}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.calories,
-                        ),
-                      ),
-                      const Text(
-                        'cal',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.textTertiary,
-                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  // Weight editor
+                  _buildWeightEditor(food, editedWeight, editedNutrition),
                 ],
               ),
             );
@@ -578,63 +577,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     );
   }
 
-  void _startEditing() {
-    setState(() {
-      _isEditing = true;
-    });
-  }
-
-  void _cancelEditing() {
-    // Reset controllers to original values
-    _calculateTotalNutrition();
-    _caloriesController.text = _totalNutrition.calories.toStringAsFixed(0);
-    _proteinController.text = _totalNutrition.protein.toStringAsFixed(1);
-    _carbsController.text = _totalNutrition.carbs.toStringAsFixed(1);
-    _fatController.text = _totalNutrition.fat.toStringAsFixed(1);
-    _fiberController.text = (_totalNutrition.fiber ?? 0).toStringAsFixed(1);
-    
-    setState(() {
-      _isEditing = false;
-    });
-  }
-
-  void _showEditDialog(String label, TextEditingController controller, String unit) {
-    final tempController = TextEditingController(text: controller.text);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit $label'),
-        content: TextField(
-          controller: tempController,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: label,
-            suffixText: unit,
-            border: const OutlineInputBorder(),
-          ),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
-          ],
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              controller.text = tempController.text;
-              Navigator.of(context).pop();
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _saveChanges() async {
     setState(() {
       _isSaving = true;
@@ -643,8 +585,22 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     try {
       final provider = context.read<NutritionProvider>();
       
-      // Create updated food items with adjusted nutrition
-      final adjustedFoodItems = _adjustFoodItemNutrition();
+      // Create updated food items with edited weights
+      List<FoodItem> updatedFoodItems = _currentMeal.foodItems.map((food) {
+        final editedWeight = _editedWeights[food.id] ?? food.estimatedWeight;
+        if ((editedWeight - food.estimatedWeight).abs() > 0.1) {
+          // Weight was edited - update it and recalculate nutrition
+          final editedNutrition = food.getNutritionForWeight(editedWeight);
+          return food.copyWith(
+            estimatedWeight: editedWeight,
+            nutrition: editedNutrition,
+          );
+        }
+        return food;
+      }).toList();
+
+      // Create adjusted food items (for any direct nutrition edits)
+      final adjustedFoodItems = _adjustFoodItemsWithEdits(updatedFoodItems);
       
       // Update the meal
       final updatedMeal = _currentMeal.copyWith(
@@ -652,6 +608,11 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
         analysisMetadata: {
           ..._currentMeal.analysisMetadata ?? {},
           'lastEditedAt': DateTime.now().toIso8601String(),
+          'weightEdits': {
+            for (var entry in _editedWeights.entries)
+              if ((entry.value - _currentMeal.foodItems.firstWhere((f) => f.id == entry.key).estimatedWeight).abs() > 0.1)
+                entry.key: entry.value,
+          },
           'editedTotal': _totalNutrition.toMap(),
         },
       );
@@ -661,7 +622,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       if (mounted) {
         setState(() {
           _currentMeal = updatedMeal;
-          _isEditing = false;
         });
         
         HapticFeedback.mediumImpact();
@@ -716,6 +676,243 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       
       return food.copyWith(nutrition: adjustedNutrition);
     }).toList();
+  }
+
+  List<FoodItem> _adjustFoodItemsWithEdits(List<FoodItem> foodItems) {
+    // If weights were edited, the nutrition is already recalculated
+    // This method just returns them as-is
+    // But if user also edited macros in the summary, we would apply those adjustments here
+    return foodItems;
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _initializeEditedWeights();
+      _calculateTotalNutrition();
+      _updateControllers();
+    });
+  }
+
+  void _updateFoodWeight(String foodId, double newWeight) {
+    if (newWeight <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Weight must be greater than 0'),
+          backgroundColor: AppTheme.error,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _editedWeights[foodId] = newWeight;
+      _recalculateTotals();
+    });
+  }
+
+  void _adjustFoodWeight(String foodId, int delta) {
+    final current = _editedWeights[foodId] ?? 0;
+    final newWeight = (current + delta).clamp(10, 10000).toDouble();
+    _updateFoodWeight(foodId, newWeight);
+  }
+
+  void _resetFoodWeight(String foodId) {
+    final originalFood = _currentMeal.foodItems.firstWhere((f) => f.id == foodId);
+    setState(() {
+      _editedWeights[foodId] = originalFood.estimatedWeight;
+      _recalculateTotals();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Reset to AI estimate'),
+        backgroundColor: AppTheme.secondary,
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildWeightEditor(FoodItem food, double editedWeight, NutritionData editedNutrition) {
+    final originalWeight = food.estimatedWeight;
+    final weightChanged = (editedWeight - originalWeight).abs() > 0.1;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceVariant.withAlpha(30),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top row: info, nutrients
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      food.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (food.description.isNotEmpty)
+                      Text(
+                        food.description,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textTertiary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              FoodItemNutrientDisplay(nutrition: editedNutrition),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Bottom row: edit button (left), weight controls (right)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Edit button (left side)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showFoodItemEditDialog(food),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.edit, size: 16, color: AppTheme.primary),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Edit',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Weight controls: - button, weight, + button
+              Row(
+                children: [
+                  // Minus button (enlarged)
+                  Material(
+                    color: AppTheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () => _adjustFoodWeight(food.id, -10),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(Icons.remove, size: 24, color: AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Weight display
+                  Text(
+                    '${editedWeight.toStringAsFixed(0)} g',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Plus button (enlarged)
+                  Material(
+                    color: AppTheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () => _adjustFoodWeight(food.id, 10),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(Icons.add, size: 24, color: AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFoodItemEditDialog(FoodItem food) {
+    showDialog(
+      context: context,
+      builder: (context) => _FoodItemEditDialog(
+        foodItem: food,
+        onUpdate: (updatedFood) {
+          // Directly update the food item in _currentMeal
+          final index = _currentMeal.foodItems.indexWhere((f) => f.id == updatedFood.id);
+          if (index >= 0) {
+            final updatedFoodItems = [..._currentMeal.foodItems];
+            updatedFoodItems[index] = updatedFood;
+            setState(() {
+              _currentMeal = _currentMeal.copyWith(foodItems: updatedFoodItems);
+              _editedWeights[updatedFood.id] = updatedFood.estimatedWeight;
+              _calculateTotalNutrition();
+              _updateControllers();
+            });
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildMacroTag(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _getMealTypeDisplay() {
@@ -783,5 +980,230 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   bool _isManualEntry() {
     final entryMethod = _currentMeal.analysisMetadata?['entryMethod'] as String?;
     return entryMethod == 'manual';
+  }
+}
+
+class _FoodItemEditDialog extends StatefulWidget {
+  final FoodItem foodItem;
+  final Function(FoodItem) onUpdate;
+
+  const _FoodItemEditDialog({
+    required this.foodItem,
+    required this.onUpdate,
+  });
+
+  @override
+  State<_FoodItemEditDialog> createState() => _FoodItemEditDialogState();
+}
+
+class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
+  late TextEditingController _weightController;
+  late TextEditingController _caloriesController;
+  late TextEditingController _proteinController;
+  late TextEditingController _carbsController;
+  late TextEditingController _fatController;
+
+  @override
+  void initState() {
+    super.initState();
+    _weightController = TextEditingController(text: widget.foodItem.estimatedWeight.toStringAsFixed(1));
+    _caloriesController = TextEditingController(text: widget.foodItem.nutrition.calories.toStringAsFixed(0));
+    _proteinController = TextEditingController(text: widget.foodItem.nutrition.protein.toStringAsFixed(1));
+    _carbsController = TextEditingController(text: widget.foodItem.nutrition.carbs.toStringAsFixed(1));
+    _fatController = TextEditingController(text: widget.foodItem.nutrition.fat.toStringAsFixed(1));
+  }
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    _caloriesController.dispose();
+    _proteinController.dispose();
+    _carbsController.dispose();
+    _fatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Edit: ${widget.foodItem.name}'),
+      contentPadding: const EdgeInsets.all(20),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildEditField('Weight (g)', _weightController),
+            const SizedBox(height: 12),
+            _buildEditField('Calories (kcal)', _caloriesController),
+            const SizedBox(height: 12),
+            _buildEditField('Protein (g)', _proteinController),
+            const SizedBox(height: 12),
+            _buildEditField('Carbs (g)', _carbsController),
+            const SizedBox(height: 12),
+            _buildEditField('Fat (g)', _fatController),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditField(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            isDense: true,
+          ),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _save() {
+    final weight = double.tryParse(_weightController.text);
+    final calories = double.tryParse(_caloriesController.text);
+    final protein = double.tryParse(_proteinController.text);
+    final carbs = double.tryParse(_carbsController.text);
+    final fat = double.tryParse(_fatController.text);
+
+    if (weight == null || weight <= 0 || calories == null || protein == null || carbs == null || fat == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all fields with valid numbers'),
+          backgroundColor: AppTheme.error,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final updatedNutrition = NutritionData(
+      calories: calories,
+      protein: protein,
+      carbs: carbs,
+      fat: fat,
+      fiber: widget.foodItem.nutrition.fiber,
+      sugar: widget.foodItem.nutrition.sugar,
+      sodium: widget.foodItem.nutrition.sodium,
+      vitaminC: widget.foodItem.nutrition.vitaminC,
+      calcium: widget.foodItem.nutrition.calcium,
+      iron: widget.foodItem.nutrition.iron,
+    );
+
+    final updatedItem = widget.foodItem.copyWith(
+      estimatedWeight: weight,
+      nutrition: updatedNutrition,
+    );
+
+    widget.onUpdate(updatedItem);
+    Navigator.of(context).pop();
+  }
+}
+
+/// Reusable nutrient display component
+class FoodItemNutrientDisplay extends StatelessWidget {
+  final NutritionData nutrition;
+  final double width;
+
+  const FoodItemNutrientDisplay({
+    required this.nutrition,
+    this.width = 100,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildNutrientTag('Cal', nutrition.calories.toInt().toString(), AppTheme.calories),
+            const SizedBox(width: 6),
+            _buildNutrientTag('P', nutrition.protein.toStringAsFixed(1), AppTheme.protein),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildNutrientTag('C', nutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
+            const SizedBox(width: 6),
+            _buildNutrientTag('F', nutrition.fat.toStringAsFixed(1), AppTheme.fat),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNutrientTag(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
