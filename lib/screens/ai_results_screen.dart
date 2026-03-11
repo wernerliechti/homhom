@@ -368,20 +368,37 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row: food info, nutrients, edit button
+          // Top row: edit button, food info, nutrients
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Edit button (top-left)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _itemEditMode[food.id] = true;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Icon(Icons.edit, size: 20, color: AppTheme.primary),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
               Container(
                 width: 12,
                 height: 12,
-                margin: const EdgeInsets.only(top: 2),
+                margin: const EdgeInsets.only(top: 6),
                 decoration: BoxDecoration(
                   color: _getConfidenceColor(food.confidence),
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,23 +435,6 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               ),
               const SizedBox(width: 16),
               FoodItemNutrientDisplay(nutrition: food.nutrition),
-              const SizedBox(width: 16),
-              // Edit button (top-right)
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _itemEditMode[food.id] = true;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Icon(Icons.edit, size: 20, color: AppTheme.primary),
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 16),

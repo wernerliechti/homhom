@@ -748,10 +748,23 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row: info, nutrients, edit button
+          // Top row: edit button, info, nutrients
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Edit button (top-left)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showFoodItemEditDialog(food),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Icon(Icons.edit, size: 20, color: AppTheme.primary),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -779,19 +792,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               ),
               const SizedBox(width: 16),
               FoodItemNutrientDisplay(nutrition: editedNutrition),
-              const SizedBox(width: 16),
-              // Edit button (top-right)
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _showFoodItemEditDialog(food),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Icon(Icons.edit, size: 20, color: AppTheme.primary),
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1139,17 +1139,15 @@ class FoodItemNutrientDisplay extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildNutrientTag('Cal', nutrition.calories.toInt().toString(), AppTheme.calories),
-            const SizedBox(width: 6),
             _buildNutrientTag('P', nutrition.protein.toStringAsFixed(1), AppTheme.protein),
+            const SizedBox(width: 6),
+            _buildNutrientTag('C', nutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
           ],
         ),
         const SizedBox(height: 6),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildNutrientTag('C', nutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
-            const SizedBox(width: 6),
             _buildNutrientTag('F', nutrition.fat.toStringAsFixed(1), AppTheme.fat),
           ],
         ),
