@@ -167,7 +167,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             'Food Name',
             _nameController,
             'e.g. Chicken Breast, Apple',
-            hint: true,
+            isHint: true,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -175,7 +175,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _caloriesController,
             'kcal',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
         ],
       ),
@@ -309,7 +308,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             'Description',
             _descriptionController,
             'e.g. grilled, skinless',
-            hint: true,
+            isHint: true,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -317,7 +316,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _weightController,
             'g',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
           const SizedBox(height: 16),
           const Divider(height: 24),
@@ -339,7 +337,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                   _proteinController,
                   'g',
                   keyboardType: TextInputType.number,
-                  suffix: true,
                   compact: true,
                 ),
               ),
@@ -350,7 +347,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                   _carbsController,
                   'g',
                   keyboardType: TextInputType.number,
-                  suffix: true,
                   compact: true,
                 ),
               ),
@@ -362,7 +358,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _fatController,
             'g',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
           const SizedBox(height: 16),
           const Divider(height: 24),
@@ -381,7 +376,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _fiberController,
             'g',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -389,7 +383,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _sugarController,
             'g',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -397,7 +390,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _sodiumController,
             'mg',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -405,7 +397,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _vitaminCController,
             'mg',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -413,7 +404,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _calciumController,
             'mg',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -421,7 +411,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             _ironController,
             'mg',
             keyboardType: TextInputType.number,
-            suffix: true,
           ),
         ],
       ),
@@ -431,9 +420,8 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   Widget _buildTextField(
     String label,
     TextEditingController controller,
-    String suffix, {
-    bool hint = false,
-    bool suffix_widget = false,
+    String? suffix, {
+    bool isHint = false,
     bool compact = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
@@ -453,8 +441,8 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
           controller: controller,
           keyboardType: keyboardType,
           decoration: InputDecoration(
-            hintText: hint ? suffix : null,
-            suffixText: !hint ? suffix : null,
+            hintText: isHint ? suffix : null,
+            suffixText: !isHint ? suffix : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppTheme.divider),
@@ -589,7 +577,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
       // Create FoodItem from manual entry
       final foodItem = FoodItem(
-        id: const Uuid().v4(),
+        id: Uuid().v4(),
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         estimatedWeight: double.tryParse(_weightController.text) ?? 100,
