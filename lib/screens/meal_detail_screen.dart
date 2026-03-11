@@ -670,6 +670,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
             content: Text('✅ Meal updated successfully!'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -680,6 +681,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
             content: Text('Failed to save changes: $e'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }

@@ -580,6 +580,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
             content: Text('🍽️ Meal saved successfully!'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -590,6 +591,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
             content: Text('Failed to save meal: $e'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }

@@ -348,6 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
               content: Text('🍽️ Meal added! Check the Timeline.'),
               backgroundColor: AppTheme.success,
               behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
             ),
           );
           
@@ -362,6 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
             content: Text('Failed to capture image: $e'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -383,6 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
             content: Text('🍽️ Food item added! Check the Timeline.'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
         

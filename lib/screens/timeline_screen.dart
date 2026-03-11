@@ -675,6 +675,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
             content: Text('${_getMealTypeDisplay(meal.type)} deleted'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
             action: SnackBarAction(
               label: 'Undo',
               textColor: Colors.white,
@@ -683,6 +684,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   const SnackBar(
                     content: Text('Undo not yet implemented'),
                     behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
                   ),
                 );
               },
@@ -697,6 +699,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
             content: Text('Failed to delete meal: $e'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
