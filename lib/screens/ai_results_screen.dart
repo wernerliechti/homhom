@@ -360,27 +360,28 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
 
   Widget _buildFoodItemDisplay(FoodItem food, int index) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceVariant.withAlpha(50),
-        borderRadius: BorderRadius.circular(8),
+        color: AppTheme.surfaceVariant.withAlpha(30),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Top row: confidence dot, food info, nutrients
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(top: 3),
+                width: 12,
+                height: 12,
+                margin: const EdgeInsets.only(top: 2),
                 decoration: BoxDecoration(
                   color: _getConfidenceColor(food.confidence),
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,16 +389,16 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                     Text(
                       food.name,
                       style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                         color: AppTheme.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       '${food.portionDescription} • ${food.confidenceText} confidence',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppTheme.textSecondary,
                       ),
                     ),
@@ -406,7 +407,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                       Text(
                         food.description,
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           color: AppTheme.textTertiary,
                           fontStyle: FontStyle.italic,
                         ),
@@ -415,98 +416,95 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               FoodItemNutrientDisplay(nutrition: food.nutrition),
             ],
           ),
-          const SizedBox(height: 12),
-          // Weight controls
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.surface,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Weight with +/- buttons
-                Row(
-                  children: [
-                    Material(
-                      color: AppTheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(4),
-                      child: InkWell(
-                        onTap: () {
-                          final newWeight = (food.estimatedWeight - 10).clamp(10, 10000).toDouble();
-                          _updateFoodItemWeight(food.id, newWeight);
-                        },
-                        borderRadius: BorderRadius.circular(4),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                          child: Icon(Icons.remove, size: 16, color: AppTheme.primary),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${food.estimatedWeight.toStringAsFixed(0)} g',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Material(
-                      color: AppTheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(4),
-                      child: InkWell(
-                        onTap: () {
-                          final newWeight = (food.estimatedWeight + 10).clamp(10, 10000).toDouble();
-                          _updateFoodItemWeight(food.id, newWeight);
-                        },
-                        borderRadius: BorderRadius.circular(4),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                          child: Icon(Icons.add, size: 16, color: AppTheme.primary),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // Edit button
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _itemEditMode[food.id] = true;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.edit, size: 14, color: AppTheme.primary),
-                          const SizedBox(width: 4),
-                          const Text(
-                            'Edit',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
+          const SizedBox(height: 16),
+          // Bottom row: weight controls and edit button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Edit button (top-left)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _itemEditMode[food.id] = true;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.edit, size: 16, color: AppTheme.primary),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Edit',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              // Weight controls: - button, weight, + button
+              Row(
+                children: [
+                  // Minus button (enlarged)
+                  Material(
+                    color: AppTheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () {
+                        final newWeight = (food.estimatedWeight - 10).clamp(10, 10000).toDouble();
+                        _updateFoodItemWeight(food.id, newWeight);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(Icons.remove, size: 24, color: AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Weight display
+                  Text(
+                    '${food.estimatedWeight.toStringAsFixed(0)} g',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Plus button (enlarged)
+                  Material(
+                    color: AppTheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () {
+                        final newWeight = (food.estimatedWeight + 10).clamp(10, 10000).toDouble();
+                        _updateFoodItemWeight(food.id, newWeight);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(Icons.add, size: 24, color: AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

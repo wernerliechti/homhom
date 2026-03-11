@@ -740,102 +740,120 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     final weightChanged = (editedWeight - originalWeight).abs() > 0.1;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.primary.withAlpha(30)),
+        color: AppTheme.surfaceVariant.withAlpha(30),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Weight adjustment row
+          // Top row: info, nutrients
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Minus button
-              Material(
-                color: AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(6),
-                child: InkWell(
-                  onTap: () => _adjustFoodWeight(food.id, -10),
-                  borderRadius: BorderRadius.circular(6),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Icon(Icons.remove, size: 18, color: AppTheme.primary),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Weight column
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${editedWeight.toStringAsFixed(0)} g',
+                      food.name,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.textPrimary,
                       ),
                     ),
-                    const Text(
-                      'Weight',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.textSecondary,
+                    const SizedBox(height: 4),
+                    if (food.description.isNotEmpty)
+                      Text(
+                        food.description,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textTertiary,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              // Plus button
-              Material(
-                color: AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(6),
-                child: InkWell(
-                  onTap: () => _adjustFoodWeight(food.id, 10),
-                  borderRadius: BorderRadius.circular(6),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Icon(Icons.add, size: 18, color: AppTheme.primary),
-                  ),
-                ),
-              ),
+              const SizedBox(width: 16),
+              FoodItemNutrientDisplay(nutrition: editedNutrition),
             ],
           ),
-          const SizedBox(height: 12),
-          // Nutrient breakdown and edit button
+          const SizedBox(height: 16),
+          // Bottom row: edit button (left), weight controls (right)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              FoodItemNutrientDisplay(nutrition: editedNutrition),
+              // Edit button (left side)
               Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () => _showFoodItemEditDialog(food),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.edit, size: 14, color: AppTheme.primary),
-                        const SizedBox(width: 4),
+                        const Icon(Icons.edit, size: 16, color: AppTheme.primary),
+                        const SizedBox(width: 6),
                         const Text(
                           'Edit',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 13,
                             color: AppTheme.primary,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
+              ),
+              // Weight controls: - button, weight, + button
+              Row(
+                children: [
+                  // Minus button (enlarged)
+                  Material(
+                    color: AppTheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () => _adjustFoodWeight(food.id, -10),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(Icons.remove, size: 24, color: AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Weight display
+                  Text(
+                    '${editedWeight.toStringAsFixed(0)} g',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Plus button (enlarged)
+                  Material(
+                    color: AppTheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () => _adjustFoodWeight(food.id, 10),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(Icons.add, size: 24, color: AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
