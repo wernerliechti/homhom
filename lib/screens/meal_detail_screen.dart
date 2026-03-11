@@ -182,16 +182,16 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.auto_awesome,
+                        _isManualEntry() ? Icons.edit_note : Icons.auto_awesome,
                         size: 16,
-                        color: AppTheme.success,
+                        color: _isManualEntry() ? AppTheme.secondary : AppTheme.success,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'AI Analyzed',
+                        _isManualEntry() ? 'Manual Entry' : 'AI Analyzed',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.success,
+                          color: _isManualEntry() ? AppTheme.secondary : AppTheme.success,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -776,5 +776,10 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     if (confidence >= 0.6) return AppTheme.secondary;
     if (confidence >= 0.4) return AppTheme.warning;
     return AppTheme.error;
+  }
+
+  bool _isManualEntry() {
+    final entryMethod = _currentMeal.analysisMetadata?['entryMethod'] as String?;
+    return entryMethod == 'manual';
   }
 }

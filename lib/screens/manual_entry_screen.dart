@@ -387,7 +387,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildEditableField('Food Name *', _nameController, 'kcal'),
+          _buildEditableField('Food Name *', _nameController, 'name'),
           const SizedBox(height: 12),
           _buildEditableField('Description', _descriptionController, 'optional'),
           const SizedBox(height: 12),
@@ -419,8 +419,12 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
           controller: controller,
           keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
           decoration: InputDecoration(
-            hintText: suffix == 'optional' ? 'e.g., grilled, skinless' : null,
-            suffixText: suffix != 'optional' ? suffix : null,
+            hintText: suffix == 'optional' 
+                ? 'e.g., grilled, skinless' 
+                : suffix == 'name'
+                ? 'e.g., Chicken Breast, Apple'
+                : null,
+            suffixText: suffix != 'optional' && suffix != 'name' ? suffix : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppTheme.divider),
@@ -567,58 +571,73 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     String unit, {
     bool fullWidth = false,
   }) {
-    return InkWell(
-      onTap: () => _showEditDialog(label, controller, unit),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withAlpha(15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withAlpha(50)),
-        ),
-        child: Column(
-          crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: fullWidth ? MainAxisAlignment.start : MainAxisAlignment.center,
-              children: [
-                Text(
-                  controller.text,
-                  style: TextStyle(
-                    fontSize: fullWidth ? 18 : 20,
-                    fontWeight: FontWeight.w700,
-                    color: color,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withAlpha(15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Column(
+        crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            textAlign: fullWidth ? TextAlign.start : TextAlign.center,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
+            ],
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              isDense: true,
+              suffix: fullWidth ? null : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    unit,
+                    style: TextStyle(
+                      fontSize: fullWidth ? 12 : 10,
+                      fontWeight: FontWeight.w500,
+                      color: color,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
+                ],
+              ),
+            ),
+            style: TextStyle(
+              fontSize: fullWidth ? 18 : 20,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          if (fullWidth) ...[
+            const SizedBox(width: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(
                   unit,
                   style: TextStyle(
-                    fontSize: fullWidth ? 12 : 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: color,
                   ),
                 ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.edit,
-                  size: 14,
-                  color: color.withAlpha(150),
-                ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: fullWidth ? 14 : 12,
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
           ],
-        ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: fullWidth ? 14 : 12,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -740,48 +759,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     setState(() {
       _selectedImagePath = null;
     });
-  }
-
-  void _showEditDialog(String label, TextEditingController controller, String unit) {
-    final tempController = TextEditingController(text: controller.text);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit $label'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: tempController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: label,
-                suffixText: unit,
-                border: const OutlineInputBorder(),
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
-              ],
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              controller.text = tempController.text;
-              Navigator.of(context).pop();
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _selectMealTime() async {
