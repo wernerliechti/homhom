@@ -368,7 +368,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row: food info, nutrients, edit button
+          // Top row: confidence dot, food info, nutrients
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -418,8 +418,15 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               ),
               const SizedBox(width: 16),
               FoodItemNutrientDisplay(nutrition: food.nutrition),
-              const SizedBox(width: 16),
-              // Edit button (top-right)
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Bottom row: weight controls and edit button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Edit button (top-left)
               Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -431,60 +438,71 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Icon(Icons.edit, size: 20, color: AppTheme.primary),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.edit, size: 16, color: AppTheme.primary),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Edit',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Bottom row: weight controls on left
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Minus button (enlarged)
-              Material(
-                color: AppTheme.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                child: InkWell(
-                  onTap: () {
-                    final newWeight = (food.estimatedWeight - 10).clamp(10, 10000).toDouble();
-                    _updateFoodItemWeight(food.id, newWeight);
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(Icons.remove, size: 24, color: AppTheme.primary),
+              // Weight controls: - button, weight, + button
+              Row(
+                children: [
+                  // Minus button (enlarged)
+                  Material(
+                    color: AppTheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () {
+                        final newWeight = (food.estimatedWeight - 10).clamp(10, 10000).toDouble();
+                        _updateFoodItemWeight(food.id, newWeight);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(Icons.remove, size: 24, color: AppTheme.primary),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Weight display
-              Text(
-                '${food.estimatedWeight.toStringAsFixed(0)} g',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Plus button (enlarged)
-              Material(
-                color: AppTheme.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                child: InkWell(
-                  onTap: () {
-                    final newWeight = (food.estimatedWeight + 10).clamp(10, 10000).toDouble();
-                    _updateFoodItemWeight(food.id, newWeight);
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(Icons.add, size: 24, color: AppTheme.primary),
+                  const SizedBox(width: 16),
+                  // Weight display
+                  Text(
+                    '${food.estimatedWeight.toStringAsFixed(0)} g',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 16),
+                  // Plus button (enlarged)
+                  Material(
+                    color: AppTheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () {
+                        final newWeight = (food.estimatedWeight + 10).clamp(10, 10000).toDouble();
+                        _updateFoodItemWeight(food.id, newWeight);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(Icons.add, size: 24, color: AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
