@@ -577,6 +577,8 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     );
   }
 
+  Future<void> _saveChanges() async {
+    setState(() {
       _isSaving = true;
     });
 
