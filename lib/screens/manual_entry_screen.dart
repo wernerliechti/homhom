@@ -149,11 +149,11 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.required_rounded, color: AppTheme.error, size: 20),
-              SizedBox(width: 8),
-              Text(
+              Icon(Icons.info, color: AppTheme.error, size: 20),
+              const SizedBox(width: 8),
+              const Text(
                 'Required Fields',
                 style: TextStyle(
                   fontSize: 16,
