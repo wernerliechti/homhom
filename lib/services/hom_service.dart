@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../models/hom_balance.dart';
+import 'receipt_validator.dart';
 
 class HomService {
   static const _storage = FlutterSecureStorage();
@@ -204,6 +205,18 @@ class HomService {
         (p) => p.id == purchase.productID,
         orElse: () => throw Exception('Unknown product: ${purchase.productID}'),
       );
+      
+      // Verify purchase receipt (for production security)
+      // TODO: Replace with proper backend verification in production
+      final isValid = await ReceiptValidator.verifyPurchaseLocal(
+        productId: purchase.productID,
+        purchaseToken: purchase.purchaseID ?? '',
+      );
+      
+      if (!isValid) {
+        print('Purchase verification failed: ${purchase.productID}');
+        return;
+      }
       
       // Add HOMs to balance
       if (_currentBalance != null && !_currentBalance!.isUnlimited) {
