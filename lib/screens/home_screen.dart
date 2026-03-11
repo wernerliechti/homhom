@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import 'timeline_screen.dart';
 import 'goals_stats_screen.dart';
 import 'meal_metadata_screen.dart';
+import 'manual_entry_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -226,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle: 'Enter nutrition manually',
               onTap: () {
                 Navigator.pop(context);
-                _showComingSoon();
+                _navigateToManualEntry();
               },
               primary: false,
             ),
@@ -347,6 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
               content: Text('🍽️ Meal added! Check the Timeline.'),
               backgroundColor: AppTheme.success,
               behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
             ),
           );
           
@@ -361,18 +363,35 @@ class _HomeScreenState extends State<HomeScreen> {
             content: Text('Failed to capture image: $e'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
     }
   }
 
-  void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Manual entry coming soon! Use photo capture for now.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _navigateToManualEntry() async {
+    if (mounted) {
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => const ManualEntryScreen(),
+        ),
+      );
+
+      // If meal was successfully added, show confirmation and switch to timeline
+      if (result == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🍽️ Food item added! Check the Timeline.'),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
+        // Switch to timeline tab
+        _setIndex(0);
+      }
+    }
   }
 }

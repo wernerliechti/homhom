@@ -193,16 +193,18 @@ class NutritionProvider with ChangeNotifier {
   }
 
   Future<Meal> saveMealWithAnalysis(
-    String imagePath,
+    String? imagePath,
     List<FoodItem> foodItems, {
     double? plateDiameter,
     double? dishWeight,
     Map<String, dynamic>? analysisMetadata,
+    DateTime? mealTime,
   }) async {
-    final mealType = Meal.getMealTypeFromTime(DateTime.now());
+    final timestamp = mealTime ?? DateTime.now();
+    final mealType = Meal.getMealTypeFromTime(timestamp);
     
     final meal = Meal(
-      timestamp: DateTime.now(),
+      timestamp: timestamp,
       type: mealType,
       imagePath: imagePath,
       foodItems: foodItems,
