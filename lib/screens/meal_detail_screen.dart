@@ -23,7 +23,6 @@ class MealDetailScreen extends StatefulWidget {
 class _MealDetailScreenState extends State<MealDetailScreen> {
   late Meal _currentMeal;
   late NutritionData _totalNutrition;
-  bool _isEditing = false;
   bool _isSaving = false;
 
   // Track edited weights per food item (foodItemId -> newWeight)
@@ -87,32 +86,12 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     _carbsController = TextEditingController(text: _totalNutrition.carbs.toStringAsFixed(1));
     _fatController = TextEditingController(text: _totalNutrition.fat.toStringAsFixed(1));
     _fiberController = TextEditingController(text: (_totalNutrition.fiber ?? 0).toStringAsFixed(1));
-
-    // Listen for changes
-    _caloriesController.addListener(_onNutritionChanged);
-    _proteinController.addListener(_onNutritionChanged);
-    _carbsController.addListener(_onNutritionChanged);
-    _fatController.addListener(_onNutritionChanged);
-    _fiberController.addListener(_onNutritionChanged);
   }
 
-  void _onNutritionChanged() {
-    if (!_isEditing) return;
-
-    final calories = double.tryParse(_caloriesController.text) ?? 0;
-    final protein = double.tryParse(_proteinController.text) ?? 0;
-    final carbs = double.tryParse(_carbsController.text) ?? 0;
-    final fat = double.tryParse(_fatController.text) ?? 0;
-    final fiber = double.tryParse(_fiberController.text) ?? 0;
-
-    setState(() {
-      _totalNutrition = NutritionData(
-        calories: calories,
-        protein: protein,
-        carbs: carbs,
-        fat: fat,
-        fiber: fiber,
-      );
+  bool _hasUnsavedChanges() {
+    return _editedWeights.values.any((w) {
+      final originalFood = _currentMeal.foodItems.firstWhereOrNull((f) => _editedWeights[f.id] == w);
+      return originalFood != null && (w - originalFood.estimatedWeight).abs() > 0.1;
     });
   }
 
@@ -133,19 +112,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
         title: Text(_getMealTypeDisplay()),
         backgroundColor: AppTheme.surface,
         elevation: 0,
-        actions: [
-          if (!_isEditing)
-            IconButton(
-              onPressed: _startEditing,
-              icon: const Icon(Icons.edit),
-              tooltip: 'Edit meal',
-            ),
-          if (_isEditing)
-            TextButton(
-              onPressed: _cancelEditing,
-              child: const Text('Cancel'),
-            ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -161,7 +127,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               const SizedBox(height: 24),
               _buildFoodItemsSection(),
             ],
-            if (_isEditing) ...[
+            if (_hasUnsavedChanges()) ...[
               const SizedBox(height: 32),
               _buildEditingActions(),
             ],
@@ -850,7 +816,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${editedWeight.toStringAsFixed(0)}g',
+                      '${editedWeight.toStringAsFixed(0)} g',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -864,16 +830,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                         color: AppTheme.textSecondary,
                       ),
                     ),
-                    if (weightChanged) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'AI: ${originalWeight.toStringAsFixed(0)}g',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          color: AppTheme.textTertiary,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -898,17 +854,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  _buildMacroTag('Cal', editedNutrition.calories.toInt().toString(), AppTheme.calories),
-                  const SizedBox(width: 6),
-                  _buildMacroTag('P', editedNutrition.protein.toStringAsFixed(1), AppTheme.protein),
-                  const SizedBox(width: 6),
-                  _buildMacroTag('C', editedNutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
-                  const SizedBox(width: 6),
-                  _buildMacroTag('F', editedNutrition.fat.toStringAsFixed(1), AppTheme.fat),
-                ],
-              ),
+              FoodItemNutrientDisplay(nutrition: editedNutrition),
               Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -1215,5 +1161,74 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
 
     widget.onUpdate(updatedItem);
     Navigator.of(context).pop();
+  }
+}
+
+/// Reusable nutrient display component
+class FoodItemNutrientDisplay extends StatelessWidget {
+  final NutritionData nutrition;
+  final double width;
+
+  const FoodItemNutrientDisplay({
+    required this.nutrition,
+    this.width = 100,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildNutrientTag('Cal', nutrition.calories.toInt().toString(), AppTheme.calories),
+            const SizedBox(width: 6),
+            _buildNutrientTag('P', nutrition.protein.toStringAsFixed(1), AppTheme.protein),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildNutrientTag('C', nutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
+            const SizedBox(width: 6),
+            _buildNutrientTag('F', nutrition.fat.toStringAsFixed(1), AppTheme.fat),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNutrientTag(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
