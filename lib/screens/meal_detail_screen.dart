@@ -89,10 +89,17 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   }
 
   bool _hasUnsavedChanges() {
-    return _editedWeights.values.any((w) {
-      final originalFood = _currentMeal.foodItems.firstWhereOrNull((f) => _editedWeights[f.id] == w);
-      return originalFood != null && (w - originalFood.estimatedWeight).abs() > 0.1;
-    });
+    for (var entry in _editedWeights.entries) {
+      try {
+        final originalFood = _currentMeal.foodItems.firstWhere((f) => f.id == entry.key);
+        if ((entry.value - originalFood.estimatedWeight).abs() > 0.1) {
+          return true;
+        }
+      } catch (e) {
+        // Food item not found, skip
+      }
+    }
+    return false;
   }
 
   @override
@@ -570,65 +577,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     );
   }
 
-  void _startEditing() {
-    setState(() {
-      _isEditing = true;
-    });
-  }
-
-  void _cancelEditing() {
-    // Reset controllers to original values
-    _calculateTotalNutrition();
-    _caloriesController.text = _totalNutrition.calories.toStringAsFixed(0);
-    _proteinController.text = _totalNutrition.protein.toStringAsFixed(1);
-    _carbsController.text = _totalNutrition.carbs.toStringAsFixed(1);
-    _fatController.text = _totalNutrition.fat.toStringAsFixed(1);
-    _fiberController.text = (_totalNutrition.fiber ?? 0).toStringAsFixed(1);
-    
-    setState(() {
-      _isEditing = false;
-    });
-  }
-
-  void _showEditDialog(String label, TextEditingController controller, String unit) {
-    final tempController = TextEditingController(text: controller.text);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit $label'),
-        content: TextField(
-          controller: tempController,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: label,
-            suffixText: unit,
-            border: const OutlineInputBorder(),
-          ),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
-          ],
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              controller.text = tempController.text;
-              Navigator.of(context).pop();
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _saveChanges() async {
-    setState(() {
       _isSaving = true;
     });
 
@@ -672,7 +620,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       if (mounted) {
         setState(() {
           _currentMeal = updatedMeal;
-          _isEditing = false;
         });
         
         HapticFeedback.mediumImpact();
@@ -734,6 +681,14 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     // This method just returns them as-is
     // But if user also edited macros in the summary, we would apply those adjustments here
     return foodItems;
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _initializeEditedWeights();
+      _calculateTotalNutrition();
+      _updateControllers();
+    });
   }
 
   void _updateFoodWeight(String foodId, double newWeight) {
