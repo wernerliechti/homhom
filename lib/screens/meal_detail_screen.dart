@@ -839,144 +839,108 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     final originalWeight = food.estimatedWeight;
     final weightChanged = (editedWeight - originalWeight).abs() > 0.1;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showFoodItemEditDialog(food),
         borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Weight',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              if (weightChanged)
-                Text(
-                  'AI: ${originalWeight.toStringAsFixed(0)}g',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textTertiary,
-                  ),
-                ),
-            ],
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.primary.withAlpha(30)),
           ),
-          const SizedBox(height: 8),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Minus button
-              Material(
-                color: AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(6),
-                child: InkWell(
-                  onTap: () => _adjustFoodWeight(food.id, -10),
-                  borderRadius: BorderRadius.circular(6),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Icon(Icons.remove, size: 18, color: AppTheme.primary),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tap to edit • Weight & Macros',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primary,
+                    ),
                   ),
-                ),
+                  const Icon(Icons.edit, size: 14, color: AppTheme.primary),
+                ],
               ),
-              const SizedBox(width: 8),
-              // Weight input field
-              Expanded(
-                child: TextField(
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    suffixText: 'g',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: AppTheme.divider),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: AppTheme.divider),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: AppTheme.primary, width: 2),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    isDense: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,1}$')),
-                  ],
-                  onChanged: (value) {
-                    final newWeight = double.tryParse(value);
-                    if (newWeight != null && newWeight > 0) {
-                      _updateFoodWeight(food.id, newWeight);
-                    }
-                  },
-                  controller: TextEditingController(text: editedWeight.toStringAsFixed(1))
-                    ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: editedWeight.toStringAsFixed(1).length),
-                    ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Plus button
-              Material(
-                color: AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(6),
-                child: InkWell(
-                  onTap: () => _adjustFoodWeight(food.id, 10),
-                  borderRadius: BorderRadius.circular(6),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Icon(Icons.add, size: 18, color: AppTheme.primary),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Macros
-              Expanded(
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildMacroTag('P', editedNutrition.protein.toStringAsFixed(1), AppTheme.protein),
-                        _buildMacroTag('C', editedNutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
-                        _buildMacroTag('F', editedNutrition.fat.toStringAsFixed(1), AppTheme.fat),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${editedWeight.toStringAsFixed(0)}g',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const Text(
+                        'Weight',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      if (weightChanged) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'AI: ${originalWeight.toStringAsFixed(0)}g',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: AppTheme.textTertiary,
+                          ),
+                        ),
                       ],
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      _buildMacroTag('Cal', editedNutrition.calories.toInt().toString(), AppTheme.calories),
+                      const SizedBox(width: 6),
+                      _buildMacroTag('P', editedNutrition.protein.toStringAsFixed(1), AppTheme.protein),
+                      const SizedBox(width: 6),
+                      _buildMacroTag('C', editedNutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
+                      const SizedBox(width: 6),
+                      _buildMacroTag('F', editedNutrition.fat.toStringAsFixed(1), AppTheme.fat),
+                    ],
+                  ),
+                ],
               ),
-              // Reset button
-              if (weightChanged)
-                TextButton.icon(
-                  onPressed: () => _resetFoodWeight(food.id),
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text(
-                    'Reset',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.secondary,
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 0),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
             ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  void _showFoodItemEditDialog(FoodItem food) {
+    showDialog(
+      context: context,
+      builder: (context) => _FoodItemEditDialog(
+        foodItem: food,
+        onUpdate: (updatedFood) {
+          // Directly update the food item in _currentMeal
+          final index = _currentMeal.foodItems.indexWhere((f) => f.id == updatedFood.id);
+          if (index >= 0) {
+            final updatedFoodItems = [..._currentMeal.foodItems];
+            updatedFoodItems[index] = updatedFood;
+            setState(() {
+              _currentMeal = _currentMeal.copyWith(foodItems: updatedFoodItems);
+              _editedWeights[updatedFood.id] = updatedFood.estimatedWeight;
+              _calculateTotalNutrition();
+              _updateControllers();
+            });
+          }
+        },
       ),
     );
   }
@@ -1076,5 +1040,161 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   bool _isManualEntry() {
     final entryMethod = _currentMeal.analysisMetadata?['entryMethod'] as String?;
     return entryMethod == 'manual';
+  }
+}
+
+class _FoodItemEditDialog extends StatefulWidget {
+  final FoodItem foodItem;
+  final Function(FoodItem) onUpdate;
+
+  const _FoodItemEditDialog({
+    required this.foodItem,
+    required this.onUpdate,
+  });
+
+  @override
+  State<_FoodItemEditDialog> createState() => _FoodItemEditDialogState();
+}
+
+class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
+  late TextEditingController _weightController;
+  late TextEditingController _caloriesController;
+  late TextEditingController _proteinController;
+  late TextEditingController _carbsController;
+  late TextEditingController _fatController;
+
+  @override
+  void initState() {
+    super.initState();
+    _weightController = TextEditingController(text: widget.foodItem.estimatedWeight.toStringAsFixed(1));
+    _caloriesController = TextEditingController(text: widget.foodItem.nutrition.calories.toStringAsFixed(0));
+    _proteinController = TextEditingController(text: widget.foodItem.nutrition.protein.toStringAsFixed(1));
+    _carbsController = TextEditingController(text: widget.foodItem.nutrition.carbs.toStringAsFixed(1));
+    _fatController = TextEditingController(text: widget.foodItem.nutrition.fat.toStringAsFixed(1));
+  }
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    _caloriesController.dispose();
+    _proteinController.dispose();
+    _carbsController.dispose();
+    _fatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Edit: ${widget.foodItem.name}'),
+      contentPadding: const EdgeInsets.all(20),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildEditField('Weight (g)', _weightController),
+            const SizedBox(height: 12),
+            _buildEditField('Calories (kcal)', _caloriesController),
+            const SizedBox(height: 12),
+            _buildEditField('Protein (g)', _proteinController),
+            const SizedBox(height: 12),
+            _buildEditField('Carbs (g)', _carbsController),
+            const SizedBox(height: 12),
+            _buildEditField('Fat (g)', _fatController),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditField(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            isDense: true,
+          ),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _save() {
+    final weight = double.tryParse(_weightController.text);
+    final calories = double.tryParse(_caloriesController.text);
+    final protein = double.tryParse(_proteinController.text);
+    final carbs = double.tryParse(_carbsController.text);
+    final fat = double.tryParse(_fatController.text);
+
+    if (weight == null || weight <= 0 || calories == null || protein == null || carbs == null || fat == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all fields with valid numbers'),
+          backgroundColor: AppTheme.error,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final updatedNutrition = NutritionData(
+      calories: calories,
+      protein: protein,
+      carbs: carbs,
+      fat: fat,
+      fiber: widget.foodItem.nutrition.fiber,
+      sugar: widget.foodItem.nutrition.sugar,
+      sodium: widget.foodItem.nutrition.sodium,
+      vitaminC: widget.foodItem.nutrition.vitaminC,
+      calcium: widget.foodItem.nutrition.calcium,
+      iron: widget.foodItem.nutrition.iron,
+    );
+
+    final updatedItem = widget.foodItem.copyWith(
+      estimatedWeight: weight,
+      nutrition: updatedNutrition,
+    );
+
+    widget.onUpdate(updatedItem);
+    Navigator.of(context).pop();
   }
 }

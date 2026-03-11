@@ -30,19 +30,21 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
   late NutritionData _totalNutrition;
   bool _isSaving = false;
 
-  // Controllers for nutrition editing
-  late TextEditingController _caloriesController;
-  late TextEditingController _proteinController;
-  late TextEditingController _carbsController;
-  late TextEditingController _fatController;
-  late TextEditingController _fiberController;
+  // Track which items are in edit mode
+  Map<String, bool> _itemEditMode = {};
 
   @override
   void initState() {
     super.initState();
     _editableFoodItems = List.from(widget.foodItems);
+    _initializeEditMode();
     _calculateTotalNutrition();
-    _initializeControllers();
+  }
+
+  void _initializeEditMode() {
+    for (var item in _editableFoodItems) {
+      _itemEditMode[item.id] = false;
+    }
   }
 
   void _calculateTotalNutrition() {
@@ -51,47 +53,14 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
         .fold(NutritionData.zero, (total, nutrition) => total + nutrition);
   }
 
-  void _initializeControllers() {
-    _caloriesController = TextEditingController(text: _totalNutrition.calories.toStringAsFixed(0));
-    _proteinController = TextEditingController(text: _totalNutrition.protein.toStringAsFixed(1));
-    _carbsController = TextEditingController(text: _totalNutrition.carbs.toStringAsFixed(1));
-    _fatController = TextEditingController(text: _totalNutrition.fat.toStringAsFixed(1));
-    _fiberController = TextEditingController(text: (_totalNutrition.fiber ?? 0).toStringAsFixed(1));
-
-    // Listen for changes to update total
-    _caloriesController.addListener(_onNutritionChanged);
-    _proteinController.addListener(_onNutritionChanged);
-    _carbsController.addListener(_onNutritionChanged);
-    _fatController.addListener(_onNutritionChanged);
-    _fiberController.addListener(_onNutritionChanged);
-  }
-
-  void _onNutritionChanged() {
-    final calories = double.tryParse(_caloriesController.text) ?? 0;
-    final protein = double.tryParse(_proteinController.text) ?? 0;
-    final carbs = double.tryParse(_carbsController.text) ?? 0;
-    final fat = double.tryParse(_fatController.text) ?? 0;
-    final fiber = double.tryParse(_fiberController.text) ?? 0;
-
+  void _updateFoodItem(FoodItem updatedItem) {
     setState(() {
-      _totalNutrition = NutritionData(
-        calories: calories,
-        protein: protein,
-        carbs: carbs,
-        fat: fat,
-        fiber: fiber,
-      );
+      final index = _editableFoodItems.indexWhere((f) => f.id == updatedItem.id);
+      if (index >= 0) {
+        _editableFoodItems[index] = updatedItem;
+        _calculateTotalNutrition();
+      }
     });
-  }
-
-  @override
-  void dispose() {
-    _caloriesController.dispose();
-    _proteinController.dispose();
-    _carbsController.dispose();
-    _fatController.dispose();
-    _fiberController.dispose();
-    super.dispose();
   }
 
   @override
@@ -152,7 +121,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
           const SizedBox(height: 8),
           Text(
             'Found ${_editableFoodItems.length} food item${_editableFoodItems.length == 1 ? '' : 's'} • '
-            'Tap any value to edit',
+            'Tap to edit portions or macros',
             style: const TextStyle(
               fontSize: 14,
               color: AppTheme.textSecondary,
@@ -224,7 +193,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               Icon(Icons.analytics, color: AppTheme.primary, size: 20),
               SizedBox(width: 8),
               Text(
-                'Nutrition Summary',
+                'Meal Total (Read-Only)',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -233,47 +202,54 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
           // Main macros in a grid
           Row(
             children: [
-              Expanded(child: _buildEditableNutrientCard(
-                'Calories',
-                _caloriesController,
-                AppTheme.calories,
-                'cal',
-              )),
+              Expanded(
+                child: _buildReadOnlyNutrientCard(
+                  'Calories',
+                  _totalNutrition.calories.toInt().toString(),
+                  AppTheme.calories,
+                  'cal',
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildEditableNutrientCard(
-                'Protein',
-                _proteinController,
-                AppTheme.protein,
-                'g',
-              )),
+              Expanded(
+                child: _buildReadOnlyNutrientCard(
+                  'Protein',
+                  _totalNutrition.protein.toStringAsFixed(1),
+                  AppTheme.protein,
+                  'g',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildEditableNutrientCard(
-                'Carbs',
-                _carbsController,
-                AppTheme.carbs,
-                'g',
-              )),
+              Expanded(
+                child: _buildReadOnlyNutrientCard(
+                  'Carbs',
+                  _totalNutrition.carbs.toStringAsFixed(1),
+                  AppTheme.carbs,
+                  'g',
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildEditableNutrientCard(
-                'Fat',
-                _fatController,
-                AppTheme.fat,
-                'g',
-              )),
+              Expanded(
+                child: _buildReadOnlyNutrientCard(
+                  'Fat',
+                  _totalNutrition.fat.toStringAsFixed(1),
+                  AppTheme.fat,
+                  'g',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          _buildEditableNutrientCard(
+          _buildReadOnlyNutrientCard(
             'Fiber',
-            _fiberController,
+            (_totalNutrition.fiber ?? 0).toStringAsFixed(1),
             AppTheme.fiber,
             'g',
             fullWidth: true,
@@ -283,75 +259,55 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
-  Widget _buildEditableNutrientCard(
+  Widget _buildReadOnlyNutrientCard(
     String label,
-    TextEditingController controller,
+    String value,
     Color color,
     String unit, {
     bool fullWidth = false,
   }) {
-    return InkWell(
-      onTap: () => _showEditDialog(label, controller, unit),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withAlpha(15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withAlpha(50)),
-        ),
-        child: Column(
-          crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: fullWidth ? MainAxisAlignment.start : MainAxisAlignment.center,
-              children: [
-                Text(
-                  controller.text,
-                  style: TextStyle(
-                    fontSize: fullWidth ? 18 : 20,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withAlpha(15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Column(
+        crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: fullWidth ? MainAxisAlignment.start : MainAxisAlignment.center,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: fullWidth ? 18 : 20,
+                  fontWeight: FontWeight.w700,
+                  color: color,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  unit,
-                  style: TextStyle(
-                    fontSize: fullWidth ? 12 : 10,
-                    fontWeight: FontWeight.w500,
-                    color: color,
-                  ),
-                ),
-                if (!fullWidth) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.edit,
-                    size: 14,
-                    color: color.withAlpha(150),
-                  ),
-                ],
-              ],
-            ),
-            if (!fullWidth) const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: fullWidth ? 14 : 12,
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
               ),
-            ),
-            if (fullWidth) ...[
-              const SizedBox(width: 8),
-              Icon(
-                Icons.edit,
-                size: 16,
-                color: color.withAlpha(150),
+              const SizedBox(width: 4),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: fullWidth ? 12 : 10,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
               ),
             ],
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: fullWidth ? 14 : 12,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -368,7 +324,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               Icon(Icons.restaurant, color: AppTheme.primary, size: 20),
               SizedBox(width: 8),
               Text(
-                'Identified Foods',
+                'Identified Foods (Editable)',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -377,85 +333,153 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
-          ..._editableFoodItems.map((food) {
-            
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
+          ..._editableFoodItems.asMap().entries.map((entry) {
+            final index = entry.key;
+            final food = entry.value;
+            final isEditing = _itemEditMode[food.id] ?? false;
+
+            return Column(
+              children: [
+                if (isEditing)
+                  _buildFoodItemEditor(food)
+                else
+                  _buildFoodItemDisplay(food, index),
+                if (index < _editableFoodItems.length - 1) ...[
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFoodItemDisplay(FoodItem food, int index) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _itemEditMode[food.id] = true;
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceVariant.withAlpha(50),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _getConfidenceColor(food.confidence),
+                  shape: BoxShape.circle,
+                ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _getConfidenceColor(food.confidence),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          food.name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${food.portionDescription} • ${food.confidenceText} confidence',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        if (food.description.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            food.description,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.textTertiary,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${food.nutrition.calories.toInt()}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.calories,
-                        ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      food.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
                       ),
-                      const Text(
-                        'cal',
-                        style: TextStyle(
-                          fontSize: 10,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${food.portionDescription} • ${food.confidenceText} confidence',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    if (food.description.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        food.description,
+                        style: const TextStyle(
+                          fontSize: 11,
                           color: AppTheme.textTertiary,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ],
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildMacroTag('Cal', food.nutrition.calories.toInt().toString(), AppTheme.calories),
+                        const SizedBox(width: 6),
+                        _buildMacroTag('P', food.nutrition.protein.toStringAsFixed(1), AppTheme.protein),
+                        const SizedBox(width: 6),
+                        _buildMacroTag('C', food.nutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
+                        const SizedBox(width: 6),
+                        _buildMacroTag('F', food.nutrition.fat.toStringAsFixed(1), AppTheme.fat),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            );
-          }),
+              const Icon(Icons.edit, size: 16, color: AppTheme.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFoodItemEditor(FoodItem food) {
+    return _FoodItemEditWidget(
+      foodItem: food,
+      onUpdate: (updatedItem) {
+        _updateFoodItem(updatedItem);
+        setState(() {
+          _itemEditMode[food.id] = false;
+        });
+      },
+      onCancel: () {
+        setState(() {
+          _itemEditMode[food.id] = false;
+        });
+      },
+    );
+  }
+
+  Widget _buildMacroTag(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 8,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
@@ -467,7 +491,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       children: [
         ElevatedButton.icon(
           onPressed: _isSaving ? null : _saveMeal,
-          icon: _isSaving 
+          icon: _isSaving
               ? const SizedBox(
                   width: 16,
                   height: 16,
@@ -499,48 +523,6 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
-  void _showEditDialog(String label, TextEditingController controller, String unit) {
-    final tempController = TextEditingController(text: controller.text);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit $label'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: tempController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: label,
-                suffixText: unit,
-                border: const OutlineInputBorder(),
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
-              ],
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              controller.text = tempController.text;
-              Navigator.of(context).pop();
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _saveMeal() async {
     setState(() {
       _isSaving = true;
@@ -548,14 +530,11 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
 
     try {
       final provider = context.read<NutritionProvider>();
-      
-      // Create updated food items with adjusted nutrition
-      final adjustedFoodItems = _adjustFoodItemNutrition();
-      
-      // Save meal with AI analysis
+
+      // Save meal with edited food items
       await provider.saveMealWithAnalysis(
         widget.imagePath,
-        adjustedFoodItems,
+        _editableFoodItems,
         plateDiameter: widget.plateDiameter,
         dishWeight: widget.dishWeight,
         analysisMetadata: {
@@ -565,7 +544,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               .fold(NutritionData.zero, (total, n) => total + n)
               .toMap(),
           'editedTotal': _totalNutrition.toMap(),
-          'confidence': widget.foodItems.isNotEmpty 
+          'confidence': widget.foodItems.isNotEmpty
               ? widget.foodItems.map((f) => f.confidence).reduce((a, b) => a + b) / widget.foodItems.length
               : 0.0,
         },
@@ -574,13 +553,13 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       if (mounted) {
         HapticFeedback.mediumImpact();
         Navigator.of(context).pop(true); // Return success
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🍽️ Meal saved successfully!'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -604,36 +583,197 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     }
   }
 
-  List<FoodItem> _adjustFoodItemNutrition() {
-    // If user edited the total nutrition, proportionally adjust each food item
-    final originalTotal = _editableFoodItems
-        .map((f) => f.nutrition)
-        .fold(NutritionData.zero, (total, n) => total + n);
-    
-    if (originalTotal.calories == 0) return _editableFoodItems;
-    
-    final calorieRatio = _totalNutrition.calories / originalTotal.calories;
-    final proteinRatio = originalTotal.protein > 0 ? _totalNutrition.protein / originalTotal.protein : 1.0;
-    final carbsRatio = originalTotal.carbs > 0 ? _totalNutrition.carbs / originalTotal.carbs : 1.0;
-    final fatRatio = originalTotal.fat > 0 ? _totalNutrition.fat / originalTotal.fat : 1.0;
-    
-    return _editableFoodItems.map((food) {
-      final adjustedNutrition = NutritionData(
-        calories: food.nutrition.calories * calorieRatio,
-        protein: food.nutrition.protein * proteinRatio,
-        carbs: food.nutrition.carbs * carbsRatio,
-        fat: food.nutrition.fat * fatRatio,
-        fiber: food.nutrition.fiber,
-      );
-      
-      return food.copyWith(nutrition: adjustedNutrition);
-    }).toList();
-  }
-
   Color _getConfidenceColor(double confidence) {
     if (confidence >= 0.8) return AppTheme.success;
     if (confidence >= 0.6) return AppTheme.secondary;
     if (confidence >= 0.4) return AppTheme.warning;
     return AppTheme.error;
+  }
+}
+
+/// Separate widget for editing individual food items
+class _FoodItemEditWidget extends StatefulWidget {
+  final FoodItem foodItem;
+  final Function(FoodItem) onUpdate;
+  final VoidCallback onCancel;
+
+  const _FoodItemEditWidget({
+    required this.foodItem,
+    required this.onUpdate,
+    required this.onCancel,
+  });
+
+  @override
+  State<_FoodItemEditWidget> createState() => _FoodItemEditWidgetState();
+}
+
+class _FoodItemEditWidgetState extends State<_FoodItemEditWidget> {
+  late TextEditingController _weightController;
+  late TextEditingController _caloriesController;
+  late TextEditingController _proteinController;
+  late TextEditingController _carbsController;
+  late TextEditingController _fatController;
+
+  @override
+  void initState() {
+    super.initState();
+    _weightController = TextEditingController(text: widget.foodItem.estimatedWeight.toStringAsFixed(1));
+    _caloriesController = TextEditingController(text: widget.foodItem.nutrition.calories.toStringAsFixed(0));
+    _proteinController = TextEditingController(text: widget.foodItem.nutrition.protein.toStringAsFixed(1));
+    _carbsController = TextEditingController(text: widget.foodItem.nutrition.carbs.toStringAsFixed(1));
+    _fatController = TextEditingController(text: widget.foodItem.nutrition.fat.toStringAsFixed(1));
+  }
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    _caloriesController.dispose();
+    _proteinController.dispose();
+    _carbsController.dispose();
+    _fatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withAlpha(10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.primary.withAlpha(50)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Edit: ${widget.foodItem.name}',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildEditField('Weight', _weightController, 'g'),
+          const SizedBox(height: 12),
+          _buildEditField('Calories', _caloriesController, 'kcal'),
+          const SizedBox(height: 12),
+          _buildEditField('Protein', _proteinController, 'g'),
+          const SizedBox(height: 12),
+          _buildEditField('Carbs', _carbsController, 'g'),
+          const SizedBox(height: 12),
+          _buildEditField('Fat', _fatController, 'g'),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _save,
+                  icon: const Icon(Icons.check, size: 18),
+                  label: const Text('Save'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: widget.onCancel,
+                  icon: const Icon(Icons.close, size: 18),
+                  label: const Text('Cancel'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditField(String label, TextEditingController controller, String unit) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            suffixText: unit,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            isDense: true,
+          ),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _save() {
+    final weight = double.tryParse(_weightController.text);
+    final calories = double.tryParse(_caloriesController.text);
+    final protein = double.tryParse(_proteinController.text);
+    final carbs = double.tryParse(_carbsController.text);
+    final fat = double.tryParse(_fatController.text);
+
+    if (weight == null || weight <= 0 || calories == null || protein == null || carbs == null || fat == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all fields with valid numbers'),
+          backgroundColor: AppTheme.error,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final updatedNutrition = NutritionData(
+      calories: calories,
+      protein: protein,
+      carbs: carbs,
+      fat: fat,
+      fiber: widget.foodItem.nutrition.fiber,
+      sugar: widget.foodItem.nutrition.sugar,
+      sodium: widget.foodItem.nutrition.sodium,
+      vitaminC: widget.foodItem.nutrition.vitaminC,
+      calcium: widget.foodItem.nutrition.calcium,
+      iron: widget.foodItem.nutrition.iron,
+    );
+
+    final updatedItem = widget.foodItem.copyWith(
+      estimatedWeight: weight,
+      nutrition: updatedNutrition,
+    );
+
+    widget.onUpdate(updatedItem);
   }
 }
