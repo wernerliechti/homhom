@@ -49,10 +49,9 @@ android {
     }
 }
 
-dependencies {
-    // Google Play Core library (required for deferred components and in-app updates)
-    implementation("com.google.android.play:core:1.10.3")
-}
+// Note: Google Play Core library removed - not needed for basic nutrition tracking app
+// Only required if you need: in-app updates, dynamic features, or deferred components
+// If you need it later, use: implementation("com.google.android.play:core:1.11.0")
 
 flutter {
     source = "../.."

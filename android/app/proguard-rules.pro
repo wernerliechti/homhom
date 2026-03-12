@@ -11,5 +11,7 @@
 -keep class io.flutter.plugins.inapppurchase.** { *; }
 
 # Google Play Core library (for deferred components)
--keep class com.google.android.play.core.** { *; }
--dontwarn com.google.android.play.core.**
+# NOTE: Commented out - only needed if you add com.google.android.play:core dependency
+# Uncomment if you re-add the dependency to your build.gradle.kts
+# -keep class com.google.android.play.core.** { *; }
+# -dontwarn com.google.android.play.core.**
