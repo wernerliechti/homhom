@@ -7,6 +7,7 @@ import '../models/food_item.dart';
 import '../models/nutrition_data.dart';
 import '../providers/nutrition_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/identified_foods_section.dart';
 
 class MealDetailScreen extends StatefulWidget {
   final Meal meal;
@@ -426,119 +427,11 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   }
 
   Widget _buildFoodItemsSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.restaurant, color: AppTheme.primary, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Identified Foods',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          ..._currentMeal.foodItems.map((food) {
-            final editedWeight = _editedWeights[food.id] ?? food.estimatedWeight;
-            final editedNutrition = food.getNutritionForWeight(editedWeight);
-            final weightChanged = (editedWeight - food.estimatedWeight).abs() > 0.1;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-                border: weightChanged ? Border.all(color: AppTheme.secondary, width: 1.5) : null,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _getConfidenceColor(food.confidence),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              food.name,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${food.confidenceText} confidence',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                            if (food.description.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                food.description,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textTertiary,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${editedNutrition.calories.toInt()}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.calories,
-                            ),
-                          ),
-                          const Text(
-                            'cal',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppTheme.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Weight editor
-                  _buildWeightEditor(food, editedWeight, editedNutrition),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
+    return IdentifiedFoodsSection(
+      foodItems: _currentMeal.foodItems,
+      editedWeights: _editedWeights,
+      onWeightChanged: _updateFoodWeight,
+      onEditPressed: _showFoodItemEditDialog,
     );
   }
 
@@ -735,132 +628,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     );
   }
 
-  Widget _buildWeightEditor(FoodItem food, double editedWeight, NutritionData editedNutrition) {
-    final originalWeight = food.estimatedWeight;
-    final weightChanged = (editedWeight - originalWeight).abs() > 0.1;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceVariant.withAlpha(30),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: info, nutrients
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      food.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    if (food.description.isNotEmpty)
-                      Text(
-                        food.description,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textTertiary,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              FoodItemNutrientDisplay(nutrition: editedNutrition),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Bottom row: edit button (left), weight controls (right)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Edit button (left side)
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _showFoodItemEditDialog(food),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.edit, size: 16, color: AppTheme.primary),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'Edit',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              // Weight controls: - button, weight, + button
-              Row(
-                children: [
-                  // Minus button (enlarged)
-                  Material(
-                    color: AppTheme.primary.withAlpha(20),
-                    borderRadius: BorderRadius.circular(8),
-                    child: InkWell(
-                      onTap: () => _adjustFoodWeight(food.id, -10),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Icon(Icons.remove, size: 24, color: AppTheme.primary),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Weight display
-                  Text(
-                    '${editedWeight.toStringAsFixed(0)} g',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Plus button (enlarged)
-                  Material(
-                    color: AppTheme.primary.withAlpha(20),
-                    borderRadius: BorderRadius.circular(8),
-                    child: InkWell(
-                      onTap: () => _adjustFoodWeight(food.id, 10),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Icon(Icons.add, size: 24, color: AppTheme.primary),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showFoodItemEditDialog(FoodItem food) {
     showDialog(
@@ -881,36 +649,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
             });
           }
         },
-      ),
-    );
-  }
-
-  Widget _buildMacroTag(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9,
-              color: color,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1139,71 +877,3 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
   }
 }
 
-/// Reusable nutrient display component
-class FoodItemNutrientDisplay extends StatelessWidget {
-  final NutritionData nutrition;
-  final double width;
-
-  const FoodItemNutrientDisplay({
-    required this.nutrition,
-    this.width = 100,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildNutrientTag('Cal', nutrition.calories.toInt().toString(), AppTheme.calories),
-            const SizedBox(width: 6),
-            _buildNutrientTag('P', nutrition.protein.toStringAsFixed(1), AppTheme.protein),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildNutrientTag('C', nutrition.carbs.toStringAsFixed(1), AppTheme.carbs),
-            const SizedBox(width: 6),
-            _buildNutrientTag('F', nutrition.fat.toStringAsFixed(1), AppTheme.fat),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNutrientTag(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withAlpha(50)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
