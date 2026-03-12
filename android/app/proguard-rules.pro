@@ -9,3 +9,7 @@
 # In-app purchase rules
 -keep class com.android.vending.billing.** { *; }
 -keep class io.flutter.plugins.inapppurchase.** { *; }
+
+# Google Play Core library (for deferred components)
+-keep class com.google.android.play.core.** { *; }
+-dontwarn com.google.android.play.core.**
