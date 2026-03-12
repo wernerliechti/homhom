@@ -16,7 +16,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -30,14 +30,28 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = System.getenv("KEY_ALIAS") ?: "homhom-release-key"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+            storeFile = file(System.getenv("STORE_FILE") ?: "../homhom-release-key.jks")
+            storePassword = System.getenv("STORE_PASSWORD") ?: ""
+        }
+    }
+
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false  // Disabled because Flutter's deferred components code references Play Core which we don't use
+            isShrinkResources = false  // Disabled with minification
+            // proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
+
+// Note: Google Play Core library removed - not needed for basic nutrition tracking app
+// Only required if you need: in-app updates, dynamic features, or deferred components
+// If you need it later, use: implementation("com.google.android.play:core:1.11.0")
 
 flutter {
     source = "../.."
