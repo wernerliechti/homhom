@@ -55,11 +55,10 @@ android {
 // If you need it later, use: implementation("com.google.android.play:core:1.11.0")
 
 dependencies {
-    // Firebase BOM (Bill of Materials) - manages version compatibility
-    implementation(platform("com.google.firebase:firebase-bom:32.7.1"))
-    implementation("com.google.firebase:firebase-core")
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
+    // Firebase dependencies with explicit versions
+    implementation("com.google.firebase:firebase-core:21.1.1")
+    implementation("com.google.firebase:firebase-auth:22.1.2")
+    implementation("com.google.firebase:firebase-firestore:24.9.1")
 }
 
 flutter {
