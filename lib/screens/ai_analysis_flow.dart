@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../models/food_item.dart';
+import '../models/nutrition_data.dart';
 import '../providers/nutrition_provider.dart';
+import '../services/firebase_service.dart';
 import '../theme/app_theme.dart';
 import 'ai_loading_screen.dart';
 import 'ai_results_screen.dart';
@@ -39,27 +43,76 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
     try {
       final provider = context.read<NutritionProvider>();
       
-      // Check if AI is configured
-      if (!await provider.isAIConfigured()) {
-        setState(() {
-          _errorMessage = 'OpenAI API key not configured. Please set up your API key in Settings.';
-          _isLoading = false;
-        });
-        return;
+      // Try to analyze meal with fallback mechanism:
+      // 1. First try local OpenAI key if configured
+      // 2. Fall back to Firebase Cloud Function (consumes HOMs, uses server-side key)
+      // 3. Only fail if both methods unavailable
+      
+      List<FoodItem>? foodItems;
+      String? usedMethod;
+      
+      // Attempt 1: Use local OpenAI API key if available
+      if (await provider.aiService.isConfigured()) {
+        try {
+          print('Using local OpenAI API key for analysis...');
+          foodItems = await provider.aiService.analyzeMealPhoto(
+            widget.imagePath,
+            dishName: widget.dishName,
+            plateDiameter: widget.plateDiameter,
+            dishWeight: widget.dishWeight,
+          );
+          usedMethod = 'local';
+        } catch (localError) {
+          print('Local analysis failed: $localError, attempting Firebase fallback...');
+          // Continue to Firebase fallback
+        }
       }
-
-      // Start AI analysis
-      final foodItems = await provider.aiService.analyzeMealPhoto(
-        widget.imagePath,
-        dishName: widget.dishName,
-        plateDiameter: widget.plateDiameter,
-        dishWeight: widget.dishWeight,
-      );
-
+      
+      // Attempt 2: Fall back to Firebase Cloud Function
+      if (foodItems == null) {
+        try {
+          print('Attempting Firebase Cloud Function analysis...');
+          final firebaseService = FirebaseService();
+          
+          // Check if user is authenticated
+          if (!firebaseService.isAuthenticated) {
+            throw Exception('User must be authenticated to use meal analysis');
+          }
+          
+          // Convert image to base64
+          final imageFile = File(widget.imagePath);
+          final imageBytes = await imageFile.readAsBytes();
+          final base64Image = base64Encode(imageBytes);
+          
+          // Call Cloud Function
+          final response = await firebaseService.processMeal(
+            imageBase64: base64Image,
+            userPreferences: widget.dishName != null 
+              ? {'dishName': widget.dishName}
+              : null,
+          );
+          
+          // Parse response and convert to FoodItem objects
+          if (response['analysis'] != null) {
+            final analysisData = response['analysis'] as Map<String, dynamic>;
+            foodItems = _parseFoodItemsFromAnalysis(analysisData);
+            usedMethod = 'firebase';
+            
+            // Show which method was used (for debugging)
+            if (usedMethod == 'firebase') {
+              print('✅ Analysis completed via Firebase (${response['remainingHoms']} HOMs remaining)');
+            }
+          }
+        } catch (firebaseError) {
+          print('Firebase analysis also failed: $firebaseError');
+          // Both methods failed, will handle error below
+        }
+      }
+      
       if (mounted) {
-        if (foodItems.isEmpty) {
+        if (foodItems == null || foodItems.isEmpty) {
           setState(() {
-            _errorMessage = 'Could not identify any food in the image. Try taking a clearer photo.';
+            _errorMessage = 'Could not identify any food in the image. Try taking a clearer photo or check your connection.';
             _isLoading = false;
           });
         } else {
@@ -77,6 +130,55 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
         });
       }
     }
+  }
+
+  /// Parse food items from Firebase Cloud Function response
+  List<FoodItem> _parseFoodItemsFromAnalysis(Map<String, dynamic> analysisData) {
+    final foodItems = <FoodItem>[];
+    
+    // Handle response from Cloud Function
+    if (analysisData['foods'] is List) {
+      final foods = analysisData['foods'] as List<dynamic>;
+      
+      for (int i = 0; i < foods.length; i++) {
+        final foodData = foods[i] as Map<String, dynamic>;
+        
+        // Extract nutrition data
+        NutritionData nutrition;
+        if (foodData['nutrition'] != null) {
+          nutrition = NutritionData.fromMap(foodData['nutrition'] as Map<String, dynamic>);
+        } else if (foodData['macros'] != null) {
+          // Handle alternative format from Cloud Function
+          final macros = foodData['macros'] as Map<String, dynamic>;
+          nutrition = NutritionData(
+            calories: (foodData['calories'] as num?)?.toDouble() ?? 0.0,
+            protein: (macros['protein'] as num?)?.toDouble() ?? 0.0,
+            carbs: (macros['carbs'] as num?)?.toDouble() ?? 0.0,
+            fat: (macros['fats'] as num?)?.toDouble() ?? 0.0,
+          );
+        } else {
+          nutrition = NutritionData.zero;
+        }
+        
+        foodItems.add(
+          FoodItem(
+            id: '${DateTime.now().millisecondsSinceEpoch}_$i',
+            name: foodData['name'] as String? ?? 'Unknown Food',
+            description: foodData['description'] as String? ?? '',
+            estimatedWeight: (foodData['estimatedWeight'] as num?)?.toDouble() ?? 100.0,
+            confidence: (foodData['confidence'] as num?)?.toDouble() ?? 0.7,
+            portionMethod: foodData['portionMethod'] as String?,
+            nutrition: nutrition,
+            metadata: {
+              'timestamp': DateTime.now().toIso8601String(),
+              'source': 'firebase_cloud_function',
+            },
+          ),
+        );
+      }
+    }
+    
+    return foodItems;
   }
 
   String _getReadableError(String error) {
