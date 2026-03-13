@@ -1,0 +1,29 @@
+{
+ "project_info": {
+ "project_number": "917278237518",
+ "project_id": "homhom-app",
+ "storage_bucket": "homhom-app.firebasestorage.app"
+ },
+ "client": [
+ {
+ "client_info": {
+ "mobilesdk_app_id": "1:917278237518:android:c9ed85afeda8f31fdff41f",
+ "android_client_info": {
+ "package_name": "com.saynode.homhom"
+ }
+ },
+ "oauth_client": [],
+ "api_key": [
+ {
+ "current_key": "AIzaSyB1vbuWkI78eOKdSqqiLNQPENw8a7DW7cI"
+ }
+ ],
+ "services": {
+ "appinvite_service": {
+ "other_platform_oauth_client": []
+ }
+ }
+ }
+ ],
+ "configuration_version": "1"
+}

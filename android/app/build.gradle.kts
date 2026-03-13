@@ -3,6 +3,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -52,6 +53,14 @@ android {
 // Note: Google Play Core library removed - not needed for basic nutrition tracking app
 // Only required if you need: in-app updates, dynamic features, or deferred components
 // If you need it later, use: implementation("com.google.android.play:core:1.11.0")
+
+dependencies {
+    // Firebase BOM (Bill of Materials) - manages version compatibility
+    implementation(platform("com.google.firebase:firebase-bom:32.7.1"))
+    implementation("com.google.firebase:firebase-core")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+}
 
 flutter {
     source = "../.."
