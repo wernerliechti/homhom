@@ -45,33 +45,32 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
       
       // Try to analyze meal with fallback mechanism:
       // 1. First try local OpenAI key if configured
-      // 2. Fall back to Firebase Cloud Function (consumes HOMs, uses server-side key)
+      // 2. Fall back to Firebase Cloud Function (uses server-side key)
       // 3. Only fail if both methods unavailable
       
       List<FoodItem>? foodItems;
-      String? usedMethod;
       
       // Attempt 1: Use local OpenAI API key if available
-      if (await provider.aiService.isConfigured()) {
-        try {
-          print('Using local OpenAI API key for analysis...');
+      try {
+        if (await provider.aiService.isConfigured()) {
+          print('🔑 Using local OpenAI API key for analysis...');
           foodItems = await provider.aiService.analyzeMealPhoto(
             widget.imagePath,
             dishName: widget.dishName,
             plateDiameter: widget.plateDiameter,
             dishWeight: widget.dishWeight,
           );
-          usedMethod = 'local';
-        } catch (localError) {
-          print('Local analysis failed: $localError, attempting Firebase fallback...');
-          // Continue to Firebase fallback
+          print('✅ Analysis completed via local OpenAI');
         }
+      } catch (localError) {
+        print('⚠️ Local analysis failed ($localError), attempting Firebase fallback...');
+        foodItems = null; // Reset to null to trigger fallback
       }
       
       // Attempt 2: Fall back to Firebase Cloud Function
       if (foodItems == null) {
         try {
-          print('Attempting Firebase Cloud Function analysis...');
+          print('☁️ Attempting Firebase Cloud Function analysis...');
           final firebaseService = FirebaseService();
           
           // Check if user is authenticated
@@ -96,23 +95,29 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
           if (response['analysis'] != null) {
             final analysisData = response['analysis'] as Map<String, dynamic>;
             foodItems = _parseFoodItemsFromAnalysis(analysisData);
-            usedMethod = 'firebase';
             
-            // Show which method was used (for debugging)
-            if (usedMethod == 'firebase') {
-              print('✅ Analysis completed via Firebase (${response['remainingHoms']} HOMs remaining)');
-            }
+            print('✅ Analysis completed via Firebase Cloud Function');
+            print('📊 Remaining HOMs: ${response['remainingHoms']}');
+          } else {
+            throw Exception('No analysis data received from server');
           }
         } catch (firebaseError) {
-          print('Firebase analysis also failed: $firebaseError');
+          print('❌ Firebase analysis failed: $firebaseError');
           // Both methods failed, will handle error below
+          if (mounted) {
+            setState(() {
+              _errorMessage = 'Analysis failed: ${_getReadableError(firebaseError.toString())}';
+              _isLoading = false;
+            });
+          }
+          return;
         }
       }
       
       if (mounted) {
         if (foodItems == null || foodItems.isEmpty) {
           setState(() {
-            _errorMessage = 'Could not identify any food in the image. Try taking a clearer photo or check your connection.';
+            _errorMessage = 'Could not identify any food in the image. Try taking a clearer photo.';
             _isLoading = false;
           });
         } else {
@@ -182,19 +187,23 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
   }
 
   String _getReadableError(String error) {
-    // Show the actual error for debugging, but with user-friendly context
+    // Translate server errors to user-friendly messages
     if (error.contains('401') || error.contains('unauthorized')) {
-      return 'Invalid API key. Please check your OpenAI API key in Settings.\n\nTechnical details: $error';
+      return 'Authorization failed. Please make sure you\'re signed in.';
     } else if (error.contains('429') || error.contains('quota')) {
-      return 'API quota exceeded. Please check your OpenAI billing and usage.\n\nTechnical details: $error';
-    } else if (error.contains('network') || error.contains('connection')) {
-      return 'Network error. Please check your internet connection.\n\nTechnical details: $error';
-    } else if (error.contains('timeout')) {
-      return 'Request timed out. Please try again.\n\nTechnical details: $error';
+      return 'Service temporarily unavailable. Please try again in a moment.';
+    } else if (error.contains('network') || error.contains('connection') || error.contains('SocketException')) {
+      return 'Network error. Please check your internet connection.';
+    } else if (error.contains('timeout') || error.contains('TimeoutException')) {
+      return 'Request timed out. Please try again.';
+    } else if (error.contains('Unable to identify') || error.contains('failed to analyze')) {
+      return 'Could not analyze this image. Please try a clearer photo of your meal.';
+    } else if (error.contains('not authenticated')) {
+      return 'Please sign in to use meal analysis.';
     }
     
-    // For debugging: always show the full error
-    return 'Analysis failed. Please try again or check your settings.\n\nTechnical details: $error';
+    // Generic fallback (don't expose server errors to users)
+    return 'Analysis failed. Please try again.';
   }
 
   @override
