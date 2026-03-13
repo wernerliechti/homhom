@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../models/hom_balance.dart';
@@ -140,11 +141,6 @@ class FirebaseService {
     }
 
     try {
-      final callable = _firestore
-          .app
-          .instanceId()
-          .then((_) => throw Exception('Use Cloud Functions directly'));
-
       // Call Cloud Function: validatePlayPurchase
       final response = await _callCloudFunction(
         'validatePlayPurchase',
@@ -266,19 +262,24 @@ class FirebaseService {
     }
   }
 
-  /// Call a Cloud Function
+  /// Call a Cloud Function using Firebase Cloud Functions SDK
   Future<Map<String, dynamic>> _callCloudFunction(
     String functionName,
     Map<String, dynamic> data,
   ) async {
     try {
-      // This uses the Firebase SDK's callable functions
-      // Make sure the function names match those in your Cloud Functions
-      throw UnimplementedError(
-        'Cloud Functions must be called through firebase_functions SDK. '
-        'For now, use the REST API directly with your Firebase project URL.',
-      );
+      final functions = FirebaseFunctions.instance;
+      
+      // Call the Cloud Function
+      final result = await functions.httpsCallable(functionName).call(data);
+      
+      // Return the response data
+      return Map<String, dynamic>.from(result.data ?? {});
+    } on FirebaseFunctionsException catch (e) {
+      print('Cloud Function error: ${e.code} - ${e.message}');
+      throw Exception('${e.code}: ${e.message}');
     } catch (e) {
+      print('Error calling Cloud Function $functionName: $e');
       rethrow;
     }
   }
