@@ -80,9 +80,11 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
               await firebaseService.signInAnonymously();
               print('✅ Anonymous sign-in successful');
             } catch (authError) {
-              print('⚠️ Anonymous sign-in failed: $authError');
-              print('📝 Anonymous authentication may be disabled in Firebase Console');
-              throw Exception('Please sign in to use meal analysis. Anonymous sign-in is currently unavailable.');
+              print('❌ Anonymous sign-in error: $authError');
+              print('   Error type: ${authError.runtimeType}');
+              print('   Error toString: ${authError.toString()}');
+              // Re-throw the actual Firebase error so we can debug it
+              throw authError;
             }
           }
           
@@ -204,7 +206,11 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
 
   String _getReadableError(String error) {
     // Translate server errors to user-friendly messages
-    if (error.contains('401') || error.contains('unauthorized') || error.contains('Unauthorized')) {
+    print('📋 Error translation for: $error');
+    
+    if (error.contains('operation-not-allowed')) {
+      return 'Anonymous sign-in is not enabled. Please contact support to set up authentication.';
+    } else if (error.contains('401') || error.contains('unauthorized') || error.contains('Unauthorized')) {
       return 'Authorization failed. Please make sure you\'re signed in.';
     } else if (error.contains('429') || error.contains('quota')) {
       return 'Service temporarily unavailable. Please try again in a moment.';
@@ -214,15 +220,14 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
       return 'Request timed out. Please try again.';
     } else if (error.contains('Unable to identify') || error.contains('failed to analyze')) {
       return 'Could not analyze this image. Please try a clearer photo of your meal.';
-    } else if (error.contains('not authenticated') || error.contains('sign in')) {
+    } else if (error.contains('not authenticated') || error.contains('sign in') || error.contains('Sign in')) {
       return 'Please sign in to use meal analysis.';
     } else if (error.contains('Anonymous') || error.contains('administrators only')) {
       return 'Sign-in is required. Please enable authentication in settings or contact support.';
-    } else if (error.contains('Sign in')) {
-      return 'Authentication required. Please set up your account first.';
     }
     
-    // Generic fallback (don't expose server errors to users)
+    // For unhandled errors, show generic message but log the actual error
+    print('⚠️ Unhandled error in analysis: $error');
     return 'Analysis failed. Please try again.';
   }
 

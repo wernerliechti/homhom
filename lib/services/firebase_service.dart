@@ -300,12 +300,21 @@ class FirebaseService {
     }
   }
 
-  /// Sign in anonymously (for testing)
+  /// Sign in anonymously
   Future<UserCredential> signInAnonymously() async {
     try {
-      return await _auth.signInAnonymously();
+      print('🔐 Attempting anonymous sign-in with Firebase Auth...');
+      final result = await _auth.signInAnonymously();
+      print('✅ Anonymous sign-in successful: ${result.user?.uid}');
+      return result;
     } on FirebaseAuthException catch (e) {
-      throw _handleAuthError(e);
+      final errorMessage = _handleAuthError(e);
+      print('❌ Firebase Auth error: ${e.code} - ${e.message}');
+      print('   Handled message: $errorMessage');
+      throw Exception('Firebase Auth Error (${e.code}): ${e.message}');
+    } catch (e) {
+      print('❌ Unexpected error during anonymous sign-in: $e');
+      throw Exception('Sign-in failed: $e');
     }
   }
 }
