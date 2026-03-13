@@ -73,14 +73,16 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
           print('☁️ Attempting Firebase Cloud Function analysis...');
           final firebaseService = FirebaseService();
           
-          // Check if Firebase is properly initialized
+          // Ensure user is authenticated
           if (firebaseService.currentUser == null) {
             print('⚠️ User not authenticated, attempting anonymous sign-in...');
             try {
               await firebaseService.signInAnonymously();
               print('✅ Anonymous sign-in successful');
             } catch (authError) {
-              throw Exception('User authentication required: $authError');
+              print('⚠️ Anonymous sign-in failed: $authError');
+              print('📝 Anonymous authentication may be disabled in Firebase Console');
+              throw Exception('Please sign in to use meal analysis. Anonymous sign-in is currently unavailable.');
             }
           }
           
@@ -88,10 +90,14 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
             throw Exception('User must be authenticated to use meal analysis');
           }
           
+          print('🔐 User authenticated as: ${firebaseService.currentUser?.uid}');
+          
           // Convert image to base64
           final imageFile = File(widget.imagePath);
           final imageBytes = await imageFile.readAsBytes();
           final base64Image = base64Encode(imageBytes);
+          
+          print('📸 Image converted to base64 (${base64Image.length} bytes)');
           
           // Call Cloud Function
           final response = await firebaseService.processMeal(
@@ -198,7 +204,7 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
 
   String _getReadableError(String error) {
     // Translate server errors to user-friendly messages
-    if (error.contains('401') || error.contains('unauthorized')) {
+    if (error.contains('401') || error.contains('unauthorized') || error.contains('Unauthorized')) {
       return 'Authorization failed. Please make sure you\'re signed in.';
     } else if (error.contains('429') || error.contains('quota')) {
       return 'Service temporarily unavailable. Please try again in a moment.';
@@ -208,8 +214,12 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
       return 'Request timed out. Please try again.';
     } else if (error.contains('Unable to identify') || error.contains('failed to analyze')) {
       return 'Could not analyze this image. Please try a clearer photo of your meal.';
-    } else if (error.contains('not authenticated')) {
+    } else if (error.contains('not authenticated') || error.contains('sign in')) {
       return 'Please sign in to use meal analysis.';
+    } else if (error.contains('Anonymous') || error.contains('administrators only')) {
+      return 'Sign-in is required. Please enable authentication in settings or contact support.';
+    } else if (error.contains('Sign in')) {
+      return 'Authentication required. Please set up your account first.';
     }
     
     // Generic fallback (don't expose server errors to users)

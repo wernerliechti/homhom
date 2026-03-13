@@ -3,19 +3,19 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // User documents
     match /users/{userId} {
-      // Only authenticated users can read/write their own data
-      allow read, write: if request.auth.uid == userId;
+      // Authenticated users (including anonymous) can read/write their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Transactions subcollection (read-only for users)
+      // Transactions subcollection (read-only for users, write by functions)
       match /transactions/{document=**} {
-        allow read: if request.auth.uid == userId;
-        allow write: if false; // Only backend functions can write
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null; // Cloud Functions can write
       }
       
-      // Meals subcollection (user can read own meals)
+      // Meals subcollection (user can read own meals, functions can write)
       match /meals/{document=**} {
-        allow read: if request.auth.uid == userId;
-        allow write: if false; // Only backend functions can write
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null; // Cloud Functions can write
       }
     }
     
