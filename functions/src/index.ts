@@ -6,7 +6,7 @@ admin.initializeApp();
 
 const db = admin.firestore();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
-const GOOGLE_PLAY_PACKAGE_NAME = "com.homhom.app"; // Update with your package name
+const GOOGLE_PLAY_PACKAGE_NAME = "com.saynode.homhom";
 
 interface ReceiptValidationRequest {
   purchaseToken: string;
