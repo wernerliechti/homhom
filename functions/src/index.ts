@@ -97,6 +97,58 @@ export const validatePlayPurchase = functions.https.onCall(
 );
 
 /**
+ * Helper function to process meal after user data is confirmed
+ */
+async function processMealForUser(
+  userId: string,
+  imageBase64: string,
+  userPreferences: any,
+  userData: any
+): Promise<any> {
+  // Check if user is unlimited or has HOMs
+  if (!userData.isUnlimited && userData.balance <= 0) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Insufficient HOMs. Please purchase more or add API key."
+    );
+  }
+
+  // Call OpenAI Vision API to analyze meal
+  const mealAnalysis = await analyzeImageWithOpenAI(imageBase64, userPreferences);
+
+  // Consume 1 HOM if user is metered
+  if (!userData.isUnlimited) {
+    await db.collection("users").doc(userId).update({
+      balance: admin.firestore.FieldValue.increment(-1),
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
+
+    // Log consumption
+    await db.collection("users").doc(userId).collection("transactions").add({
+      type: "consumption",
+      homsConsumed: 1,
+      remainingBalance: (userData.balance || 10) - 1,
+      timestamp: admin.firestore.Timestamp.now(),
+    });
+  }
+
+  // Log successful processing
+  await db.collection("users").doc(userId).collection("meals").add({
+    ...mealAnalysis,
+    processedAt: admin.firestore.Timestamp.now(),
+    homsUsed: userData.isUnlimited ? 0 : 1,
+  });
+
+  return {
+    success: true,
+    analysis: mealAnalysis,
+    remainingHoms: userData.isUnlimited
+      ? "unlimited"
+      : (userData.balance || 10) - 1,
+  };
+}
+
+/**
  * Process meal photo and return AI nutrition analysis
  * Consumes 1 HOM per call (for metered users)
  */
@@ -116,7 +168,7 @@ export const processMeal = functions.https.onCall(
     try {
       // Get user balance
       const userDoc = await db.collection("users").doc(userId).get();
-      const userData = userDoc.data();
+      let userData = userDoc.data();
 
       if (!userData) {
         // Create user document if doesn't exist
@@ -126,51 +178,21 @@ export const processMeal = functions.https.onCall(
           createdAt: admin.firestore.Timestamp.now(),
           updatedAt: admin.firestore.Timestamp.now(),
         });
-        // Recursively call to process with new balance
-        return processMeal(data, context);
-      }
-
-      // Check if user is unlimited or has HOMs
-      if (!userData.isUnlimited && userData.balance <= 0) {
-        throw new functions.https.HttpsError(
-          "permission-denied",
-          "Insufficient HOMs. Please purchase more or add API key."
-        );
-      }
-
-      // Call OpenAI Vision API to analyze meal
-      const mealAnalysis = await analyzeImageWithOpenAI(imageBase64, userPreferences);
-
-      // Consume 1 HOM if user is metered
-      if (!userData.isUnlimited) {
-        await db.collection("users").doc(userId).update({
-          balance: admin.firestore.FieldValue.increment(-1),
+        // Use freshly created data
+        userData = {
+          balance: 10,
+          isUnlimited: false,
+          createdAt: admin.firestore.Timestamp.now(),
           updatedAt: admin.firestore.Timestamp.now(),
-        });
-
-        // Log consumption
-        await db.collection("users").doc(userId).collection("transactions").add({
-          type: "consumption",
-          homsConsumed: 1,
-          remainingBalance: (userData.balance || 10) - 1,
-          timestamp: admin.firestore.Timestamp.now(),
-        });
+        };
       }
 
-      // Log successful processing
-      await db.collection("users").doc(userId).collection("meals").add({
-        ...mealAnalysis,
-        processedAt: admin.firestore.Timestamp.now(),
-        homsUsed: userData.isUnlimited ? 0 : 1,
-      });
-
-      return {
-        success: true,
-        analysis: mealAnalysis,
-        remainingHoms: userData.isUnlimited
-          ? "unlimited"
-          : (userData.balance || 10) - 1,
-      };
+      return await processMealForUser(
+        userId,
+        imageBase64,
+        userPreferences,
+        userData
+      );
     } catch (error: any) {
       console.error("Meal processing error:", error);
       

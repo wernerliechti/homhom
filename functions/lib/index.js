@@ -1,0 +1,343 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.setApiKey = exports.getUserBalance = exports.processMeal = exports.validatePlayPurchase = void 0;
+const functions = __importStar(require("firebase-functions"));
+const admin = __importStar(require("firebase-admin"));
+const axios_1 = __importDefault(require("axios"));
+admin.initializeApp();
+const db = admin.firestore();
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const GOOGLE_PLAY_PACKAGE_NAME = "com.saynode.homhom";
+/**
+ * Validate Google Play purchase receipt
+ * Called when user completes an in-app purchase
+ */
+exports.validatePlayPurchase = functions.https.onCall(async (data, context) => {
+    // Verify user is authenticated
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+    const userId = context.auth.uid;
+    const { purchaseToken, productId, packageName } = data;
+    try {
+        // Verify with Google Play API
+        const isValid = await verifyGooglePlayReceipt(packageName, productId, purchaseToken);
+        if (!isValid) {
+            throw new functions.https.HttpsError("invalid-argument", "Invalid purchase token");
+        }
+        // Get HOM pack details
+        const homPack = getHomPackDetails(productId);
+        if (!homPack) {
+            throw new functions.https.HttpsError("not-found", "Unknown product");
+        }
+        // Update user balance in Firestore
+        const userRef = db.collection("users").doc(userId);
+        await userRef.update({
+            balance: admin.firestore.FieldValue.increment(homPack.homs),
+            lastPurchaseAt: admin.firestore.Timestamp.now(),
+            updatedAt: admin.firestore.Timestamp.now(),
+        });
+        // Log transaction
+        await db.collection("users").doc(userId).collection("transactions").add({
+            type: "purchase",
+            productId,
+            homsAdded: homPack.homs,
+            price: homPack.price,
+            purchaseTokenHash: hashToken(purchaseToken),
+            timestamp: admin.firestore.Timestamp.now(),
+        });
+        return {
+            success: true,
+            homsAdded: homPack.homs,
+            message: `Successfully added ${homPack.homs} HOMs to your account`,
+        };
+    }
+    catch (error) {
+        console.error("Purchase validation error:", error);
+        throw new functions.https.HttpsError("internal", "Failed to validate purchase");
+    }
+});
+/**
+ * Helper function to process meal after user data is confirmed
+ */
+async function processMealForUser(userId, imageBase64, userPreferences, userData) {
+    // Check if user is unlimited or has HOMs
+    if (!userData.isUnlimited && userData.balance <= 0) {
+        throw new functions.https.HttpsError("permission-denied", "Insufficient HOMs. Please purchase more or add API key.");
+    }
+    // Call OpenAI Vision API to analyze meal
+    const mealAnalysis = await analyzeImageWithOpenAI(imageBase64, userPreferences);
+    // Consume 1 HOM if user is metered
+    if (!userData.isUnlimited) {
+        await db.collection("users").doc(userId).update({
+            balance: admin.firestore.FieldValue.increment(-1),
+            updatedAt: admin.firestore.Timestamp.now(),
+        });
+        // Log consumption
+        await db.collection("users").doc(userId).collection("transactions").add({
+            type: "consumption",
+            homsConsumed: 1,
+            remainingBalance: (userData.balance || 10) - 1,
+            timestamp: admin.firestore.Timestamp.now(),
+        });
+    }
+    // Log successful processing
+    await db.collection("users").doc(userId).collection("meals").add({
+        ...mealAnalysis,
+        processedAt: admin.firestore.Timestamp.now(),
+        homsUsed: userData.isUnlimited ? 0 : 1,
+    });
+    return {
+        success: true,
+        analysis: mealAnalysis,
+        remainingHoms: userData.isUnlimited
+            ? "unlimited"
+            : (userData.balance || 10) - 1,
+    };
+}
+/**
+ * Process meal photo and return AI nutrition analysis
+ * Consumes 1 HOM per call (for metered users)
+ */
+exports.processMeal = functions.https.onCall(async (data, context) => {
+    // Verify user is authenticated
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+    const userId = context.auth.uid;
+    const { imageBase64, userPreferences } = data;
+    try {
+        // Get user balance
+        const userDoc = await db.collection("users").doc(userId).get();
+        let userData = userDoc.data();
+        if (!userData) {
+            // Create user document if doesn't exist
+            await db.collection("users").doc(userId).set({
+                balance: 10, // 10 free HOMs for new users
+                isUnlimited: false,
+                createdAt: admin.firestore.Timestamp.now(),
+                updatedAt: admin.firestore.Timestamp.now(),
+            });
+            // Use freshly created data
+            userData = {
+                balance: 10,
+                isUnlimited: false,
+                createdAt: admin.firestore.Timestamp.now(),
+                updatedAt: admin.firestore.Timestamp.now(),
+            };
+        }
+        return await processMealForUser(userId, imageBase64, userPreferences, userData);
+    }
+    catch (error) {
+        console.error("Meal processing error:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        throw new functions.https.HttpsError("internal", "Failed to process meal");
+    }
+});
+/**
+ * Get user's current HOM balance
+ */
+exports.getUserBalance = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+    const userId = context.auth.uid;
+    try {
+        const userDoc = await db.collection("users").doc(userId).get();
+        const userData = userDoc.data();
+        if (!userData) {
+            return {
+                balance: 10,
+                isUnlimited: false,
+                isNewUser: true,
+            };
+        }
+        return {
+            balance: userData.balance || 10,
+            isUnlimited: userData.isUnlimited || false,
+            lastUpdated: userData.updatedAt?.toDate() || new Date(),
+        };
+    }
+    catch (error) {
+        console.error("Get balance error:", error);
+        throw new functions.https.HttpsError("internal", "Failed to get balance");
+    }
+});
+/**
+ * Set API key to switch to unlimited mode
+ */
+exports.setApiKey = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+    const userId = context.auth.uid;
+    const { apiKey } = data;
+    try {
+        const userRef = db.collection("users").doc(userId);
+        if (apiKey && apiKey.trim()) {
+            // Validate API key format (basic check)
+            if (!apiKey.startsWith("sk-")) {
+                throw new functions.https.HttpsError("invalid-argument", "Invalid API key format");
+            }
+            // Store encrypted API key (in production, use KMS)
+            await userRef.update({
+                isUnlimited: true,
+                apiKeyHash: hashToken(apiKey), // Store hash only
+                updatedAt: admin.firestore.Timestamp.now(),
+            });
+            return { success: true, message: "API key set. Unlimited mode enabled." };
+        }
+        else {
+            // Remove API key, revert to metered mode
+            await userRef.update({
+                isUnlimited: false,
+                balance: 10, // Reset with free HOMs
+                updatedAt: admin.firestore.Timestamp.now(),
+            });
+            return { success: true, message: "API key removed. Switched to metered mode." };
+        }
+    }
+    catch (error) {
+        console.error("Set API key error:", error);
+        throw new functions.https.HttpsError("internal", "Failed to set API key");
+    }
+});
+// ============ Helper Functions ============
+/**
+ * Verify purchase with Google Play Billing Library
+ * https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.products/get
+ */
+async function verifyGooglePlayReceipt(packageName, productId, purchaseToken) {
+    try {
+        // In production, use Google Play Billing Library with service account credentials
+        // For now, we'll verify the token format
+        // TODO: Implement full Google Play verification with service account
+        if (!purchaseToken || purchaseToken.length < 50) {
+            return false;
+        }
+        // Placeholder: In production, call Google Play API
+        // const response = await axios.get(
+        //   `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/products/${productId}/tokens/${purchaseToken}`,
+        //   { headers: { Authorization: `Bearer ${accessToken}` } }
+        // );
+        // return response.data.purchaseState === 0; // 0 = purchased
+        console.log(`Verifying purchase: package=${packageName}, product=${productId}`);
+        return true; // For internal testing, accept valid tokens
+    }
+    catch (error) {
+        console.error("Google Play verification error:", error);
+        return false;
+    }
+}
+/**
+ * Analyze meal image using OpenAI Vision API
+ */
+async function analyzeImageWithOpenAI(imageBase64, preferences) {
+    try {
+        if (!OPENAI_API_KEY) {
+            throw new Error("OpenAI API key not configured");
+        }
+        const response = await axios_1.default.post("https://api.openai.com/v1/chat/completions", {
+            model: "gpt-4-vision-preview",
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `Analyze this meal image and provide detailed nutrition information in JSON format with:
+                - foods: array of identified foods
+                - calories: estimated total calories
+                - macros: { protein, carbs, fats } in grams
+                - vitamins: array of key vitamins
+                - allergens: array of detected allergens
+                - healthScore: 1-10 rating
+                
+                User preferences: ${JSON.stringify(preferences || {})}`,
+                        },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: `data:image/jpeg;base64,${imageBase64}`,
+                            },
+                        },
+                    ],
+                },
+            ],
+            max_tokens: 1024,
+        }, {
+            headers: {
+                Authorization: `Bearer ${OPENAI_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+        });
+        const content = response.data.choices[0].message.content;
+        try {
+            return JSON.parse(content);
+        }
+        catch {
+            return { rawAnalysis: content };
+        }
+    }
+    catch (error) {
+        console.error("OpenAI analysis error:", error.response?.data || error);
+        throw new functions.https.HttpsError("internal", "Failed to analyze meal image");
+    }
+}
+/**
+ * Get HOM pack details
+ */
+function getHomPackDetails(productId) {
+    const packs = {
+        hom_pack_10: { homs: 10, price: 2.0 },
+        hom_pack_100: { homs: 100, price: 10.0 },
+        hom_pack_1000: { homs: 1000, price: 50.0 },
+    };
+    return packs[productId] || null;
+}
+/**
+ * Simple hash function for tokens (one-way)
+ */
+function hashToken(token) {
+    const crypto = require("crypto");
+    return crypto.createHash("sha256").update(token).digest("hex");
+}
+//# sourceMappingURL=index.js.map

@@ -2,14 +2,16 @@
   "name": "homhom-functions",
   "description": "HomHom Firebase Cloud Functions",
   "scripts": {
+    "build": "tsc",
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "lint": "echo 'No linting configured'"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "lib/index.js",
   "dependencies": {
