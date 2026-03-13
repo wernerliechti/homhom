@@ -78,11 +78,18 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
             print('⚠️ User not authenticated, attempting anonymous sign-in...');
             try {
               await firebaseService.signInAnonymously();
-              print('✅ Anonymous sign-in successful');
+              print('✅ Anonymous sign-in successful: ${firebaseService.currentUser?.uid}');
             } catch (authError) {
               print('❌ Anonymous sign-in error: $authError');
               print('   Error type: ${authError.runtimeType}');
               print('   Error toString: ${authError.toString()}');
+              print('   Troubleshooting: Try these steps:');
+              print('   1. Go to Firebase Console → Authentication → Sign-in method');
+              print('   2. Verify Anonymous is enabled');
+              print('   3. Go to Project Settings → Android app');
+              print('   4. Verify your SHA-1 fingerprint is listed');
+              print('   5. Verify package name is: com.saynode.homhom');
+              print('   6. Try: flutter clean && flutter run');
               // Re-throw the actual Firebase error so we can debug it
               throw authError;
             }
