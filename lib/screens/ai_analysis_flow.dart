@@ -73,7 +73,17 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
           print('☁️ Attempting Firebase Cloud Function analysis...');
           final firebaseService = FirebaseService();
           
-          // Check if user is authenticated
+          // Check if Firebase is properly initialized
+          if (firebaseService.currentUser == null) {
+            print('⚠️ User not authenticated, attempting anonymous sign-in...');
+            try {
+              await firebaseService.signInAnonymously();
+              print('✅ Anonymous sign-in successful');
+            } catch (authError) {
+              throw Exception('User authentication required: $authError');
+            }
+          }
+          
           if (!firebaseService.isAuthenticated) {
             throw Exception('User must be authenticated to use meal analysis');
           }
