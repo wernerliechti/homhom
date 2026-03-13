@@ -48,3 +48,7 @@ app.*.map.json
 /android/key.properties
 /android/homhom-release-key.jks
 /android/*.jks
+
+# Firebase config (download fresh from Firebase Console per device)
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
