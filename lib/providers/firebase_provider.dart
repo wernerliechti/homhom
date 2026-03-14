@@ -29,27 +29,49 @@ class FirebaseProvider with ChangeNotifier {
       _lastError = null;
       notifyListeners();
 
+      print('🔥 Initializing Firebase...');
       await _firebaseService.initialize();
+      print('✅ Firebase core initialized');
 
       _currentUser = _firebaseService.currentUser;
+      print('📱 Current user after init: ${_currentUser?.uid ?? "none"}');
 
       // If no user is authenticated, sign in anonymously
       if (_currentUser == null) {
-        print('📱 No user authenticated, signing in anonymously...');
-        await _firebaseService.signInAnonymously();
-        _currentUser = _firebaseService.currentUser;
-        print('✅ Anonymous sign-in completed, UID: ${_currentUser?.uid}');
+        print('🔐 No user authenticated, attempting anonymous sign-in...');
+        try {
+          await _firebaseService.signInAnonymously();
+          _currentUser = _firebaseService.currentUser;
+          print('✅ Anonymous sign-in successful, UID: ${_currentUser?.uid}');
+        } catch (signInError) {
+          print('⚠️ Sign-in error (may be Pigeon deserialization): $signInError');
+          // Wait a moment and check if user is actually authenticated
+          await Future.delayed(Duration(seconds: 1));
+          _currentUser = _firebaseService.currentUser;
+          if (_currentUser != null) {
+            print('✅ User authenticated despite error, UID: ${_currentUser?.uid}');
+          } else {
+            throw signInError;
+          }
+        }
       }
 
       // Load balance after ensuring authentication
       if (_currentUser != null) {
+        print('💰 Loading user balance...');
         await _loadBalance();
+        print('✅ Balance loaded: ${_balance?.balance ?? "unknown"}');
+      } else {
+        throw Exception('No user authenticated after initialization');
       }
 
       _isInitialized = true;
+      print('🎉 Firebase initialization complete');
     } catch (e) {
       _lastError = e.toString();
-      print('Error initializing Firebase: $e');
+      print('❌ Error initializing Firebase: $e');
+      print('   CRITICAL: Check Firebase Console → Authentication → Sign-in method');
+      print('   CRITICAL: Verify Anonymous sign-in is ENABLED');
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -313,7 +313,27 @@ class FirebaseService {
       print('   Handled message: $errorMessage');
       throw Exception('Firebase Auth Error (${e.code}): ${e.message}');
     } catch (e) {
-      print('❌ Unexpected error during anonymous sign-in: $e');
+      print('❌ Error during anonymous sign-in: $e');
+      print('   Error type: ${e.runtimeType}');
+      
+      // Pigeon deserialization errors can happen even when auth succeeds
+      // Check if user is actually authenticated despite the error
+      await Future.delayed(Duration(milliseconds: 1000));
+      
+      if (_auth.currentUser != null) {
+        print('✅ Despite error, user is authenticated as: ${_auth.currentUser?.uid}');
+        print('   (Pigeon deserialization succeeded on retry)');
+        // Re-attempt to get the credential
+        try {
+          return await _auth.signInAnonymously();
+        } catch (retryError) {
+          print('⚠️ Retry also failed, but proceeding - user exists: ${_auth.currentUser?.uid}');
+          // At this point, give up on getting the credential but continue
+          // The user is authenticated even though we can't get the credential
+          rethrow;
+        }
+      }
+      
       throw Exception('Sign-in failed: $e');
     }
   }
