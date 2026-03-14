@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'providers/nutrition_provider.dart';
 import 'providers/hom_provider.dart';
+import 'providers/firebase_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -31,6 +32,9 @@ class HomHomApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(
+          create: (_) => FirebaseProvider()..initialize(),
+        ),
         ChangeNotifierProvider(
           create: (_) => NutritionProvider()..initialize(),
         ),
