@@ -33,6 +33,15 @@ class FirebaseProvider with ChangeNotifier {
 
       _currentUser = _firebaseService.currentUser;
 
+      // If no user is authenticated, sign in anonymously
+      if (_currentUser == null) {
+        print('📱 No user authenticated, signing in anonymously...');
+        await _firebaseService.signInAnonymously();
+        _currentUser = _firebaseService.currentUser;
+        print('✅ Anonymous sign-in completed, UID: ${_currentUser?.uid}');
+      }
+
+      // Load balance after ensuring authentication
       if (_currentUser != null) {
         await _loadBalance();
       }
