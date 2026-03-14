@@ -44,12 +44,18 @@ class FirebaseProvider with ChangeNotifier {
           _currentUser = _firebaseService.currentUser;
           print('✅ Anonymous sign-in successful, UID: ${_currentUser?.uid}');
         } catch (signInError) {
-          print('⚠️ Sign-in error (may be Pigeon deserialization): $signInError');
-          // Wait a moment and check if user is actually authenticated
-          await Future.delayed(Duration(seconds: 1));
-          _currentUser = _firebaseService.currentUser;
-          if (_currentUser != null) {
-            print('✅ User authenticated despite error, UID: ${_currentUser?.uid}');
+          // Pigeon deserialization errors often occur even when auth succeeds
+          if (signInError.toString().contains('PigeonUserDetails')) {
+            print('⚠️ Pigeon deserialization error detected - checking if user is authenticated...');
+            await Future.delayed(Duration(milliseconds: 500));
+            _currentUser = _firebaseService.currentUser;
+            if (_currentUser != null) {
+              print('✅ User IS authenticated despite Pigeon error, UID: ${_currentUser?.uid}');
+              print('   Proceeding - this is a known SDK issue');
+              // Silently continue - auth succeeded
+            } else {
+              throw signInError;
+            }
           } else {
             throw signInError;
           }

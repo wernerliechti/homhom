@@ -310,30 +310,23 @@ class FirebaseService {
     } on FirebaseAuthException catch (e) {
       final errorMessage = _handleAuthError(e);
       print('❌ Firebase Auth error: ${e.code} - ${e.message}');
-      print('   Handled message: $errorMessage');
       throw Exception('Firebase Auth Error (${e.code}): ${e.message}');
     } catch (e) {
       print('❌ Error during anonymous sign-in: $e');
       print('   Error type: ${e.runtimeType}');
       
-      // Pigeon deserialization errors can happen even when auth succeeds
-      // Check if user is actually authenticated despite the error
-      await Future.delayed(Duration(milliseconds: 1000));
+      // Pigeon deserialization bug: auth succeeds but return value fails to deserialize
+      // Wait and check if user is actually authenticated
+      await Future.delayed(Duration(milliseconds: 800));
       
       if (_auth.currentUser != null) {
-        print('✅ Despite error, user is authenticated as: ${_auth.currentUser?.uid}');
-        print('   (Pigeon deserialization succeeded on retry)');
-        // Re-attempt to get the credential
-        try {
-          return await _auth.signInAnonymously();
-        } catch (retryError) {
-          print('⚠️ Retry also failed, but proceeding - user exists: ${_auth.currentUser?.uid}');
-          // At this point, give up on getting the credential but continue
-          // The user is authenticated even though we can't get the credential
-          rethrow;
-        }
+        print('✅ User IS authenticated despite error: ${_auth.currentUser?.uid}');
+        print('   (Known Pigeon deserialization bug - auth succeeded)');
+        // Success! Re-throw is caught by provider which ignores it
+        rethrow;
       }
       
+      // User is NOT authenticated, this is a real error
       throw Exception('Sign-in failed: $e');
     }
   }
