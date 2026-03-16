@@ -152,7 +152,7 @@ async function processMealForUser(
  * Process meal photo and return AI nutrition analysis
  * Accepts both SDK callable AND direct HTTP with Authorization header
  */
-export const processMeal = functions.https.onRequest(
+export const processMealHttp = functions.https.onRequest(
   async (req, res) => {
     // Handle CORS
     res.set('Access-Control-Allow-Origin', '*');
@@ -163,36 +163,39 @@ export const processMeal = functions.https.onRequest(
       return;
     }
 
+    // Extract token from Authorization header
+    const authHeader = req.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({
+        error: {
+          code: 'unauthenticated',
+          message: 'Missing or invalid Authorization header'
+        }
+      });
+      return;
+    }
+
+    const idToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log('Received Authorization token: ' + idToken.substring(0, 20) + '...');
+
+    // Verify token and get user ID
+    let userId: string;
     try {
-      // Extract token from Authorization header
-      const authHeader = req.get('Authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({
-          error: {
-            code: 'unauthenticated',
-            message: 'Missing or invalid Authorization header'
-          }
-        });
-      }
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      userId = decodedToken.uid;
+      console.log('Token verified for user: ' + userId);
+    } catch (tokenError: any) {
+      console.error('Token verification failed:', tokenError.message);
+      res.status(401).json({
+        error: {
+          code: 'unauthenticated',
+          message: 'Invalid or expired token: ' + tokenError.message
+        }
+      });
+      return;
+    }
 
-      const idToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-      console.log('Received Authorization token: ' + idToken.substring(0, 20) + '...');
-
-      // Verify token and get user ID
-      let userId: string;
-      try {
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        userId = decodedToken.uid;
-        console.log('Token verified for user: ' + userId);
-      } catch (tokenError: any) {
-        console.error('Token verification failed:', tokenError.message);
-        return res.status(401).json({
-          error: {
-            code: 'unauthenticated',
-            message: 'Invalid or expired token: ' + tokenError.message
-          }
-        });
-      }
+    try {
 
       // Parse request body
       // Support both SDK callable format and direct HTTP POST
@@ -235,12 +238,12 @@ export const processMeal = functions.https.onRequest(
         userData
       );
 
-      return res.json({
+      res.json({
         result: result
       });
     } catch (error: any) {
       console.error("Meal processing error:", error);
-      return res.status(500).json({
+      res.status(500).json({
         error: {
           code: 'internal',
           message: error.message || 'Failed to process meal'

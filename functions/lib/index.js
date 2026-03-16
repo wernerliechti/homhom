@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setApiKey = exports.getUserBalance = exports.processMeal = exports.validatePlayPurchase = void 0;
+exports.setApiKey = exports.getUserBalance = exports.processMealHttp = exports.validatePlayPurchase = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
@@ -133,16 +133,60 @@ async function processMealForUser(userId, imageBase64, userPreferences, userData
 }
 /**
  * Process meal photo and return AI nutrition analysis
- * Consumes 1 HOM per call (for metered users)
+ * Accepts both SDK callable AND direct HTTP with Authorization header
  */
-exports.processMeal = functions.https.onCall(async (data, context) => {
-    // Verify user is authenticated
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+exports.processMealHttp = functions.https.onRequest(async (req, res) => {
+    // Handle CORS
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.status(204).send('');
+        return;
     }
-    const userId = context.auth.uid;
-    const { imageBase64, userPreferences } = data;
+    // Extract token from Authorization header
+    const authHeader = req.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({
+            error: {
+                code: 'unauthenticated',
+                message: 'Missing or invalid Authorization header'
+            }
+        });
+        return;
+    }
+    const idToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log('Received Authorization token: ' + idToken.substring(0, 20) + '...');
+    // Verify token and get user ID
+    let userId;
     try {
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        userId = decodedToken.uid;
+        console.log('Token verified for user: ' + userId);
+    }
+    catch (tokenError) {
+        console.error('Token verification failed:', tokenError.message);
+        res.status(401).json({
+            error: {
+                code: 'unauthenticated',
+                message: 'Invalid or expired token: ' + tokenError.message
+            }
+        });
+        return;
+    }
+    try {
+        // Parse request body
+        // Support both SDK callable format and direct HTTP POST
+        let requestData;
+        if (req.body.data && typeof req.body.data === 'object') {
+            // SDK callable format: { data: { imageBase64, ... } }
+            requestData = req.body.data;
+        }
+        else {
+            // Direct HTTP format: { imageBase64, ... }
+            requestData = req.body;
+        }
+        const { imageBase64, userPreferences } = requestData;
         // Get user balance
         const userDoc = await db.collection("users").doc(userId).get();
         let userData = userDoc.data();
@@ -162,14 +206,19 @@ exports.processMeal = functions.https.onCall(async (data, context) => {
                 updatedAt: admin.firestore.Timestamp.now(),
             };
         }
-        return await processMealForUser(userId, imageBase64, userPreferences, userData);
+        const result = await processMealForUser(userId, imageBase64, userPreferences, userData);
+        res.json({
+            result: result
+        });
     }
     catch (error) {
         console.error("Meal processing error:", error);
-        if (error instanceof functions.https.HttpsError) {
-            throw error;
-        }
-        throw new functions.https.HttpsError("internal", "Failed to process meal");
+        res.status(500).json({
+            error: {
+                code: 'internal',
+                message: error.message || 'Failed to process meal'
+            }
+        });
     }
 });
 /**
