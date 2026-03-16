@@ -247,28 +247,69 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
   List<FoodItem> _parseFoodItemsFromAnalysis(Map<String, dynamic> analysisData) {
     final foodItems = <FoodItem>[];
     
+    // Handle rawAnalysis (stringified JSON from Cloud Function)
+    Map<String, dynamic> actualAnalysis = analysisData;
+    if (analysisData['rawAnalysis'] is String) {
+      try {
+        final parsed = jsonDecode(analysisData['rawAnalysis'] as String);
+        if (parsed is Map<String, dynamic>) {
+          actualAnalysis = parsed;
+          print('✅ Parsed rawAnalysis from string');
+        }
+      } catch (e) {
+        print('⚠️ Failed to parse rawAnalysis: $e');
+      }
+    }
+    
     // Handle response from Cloud Function
-    if (analysisData['foods'] is List) {
-      final foods = analysisData['foods'] as List<dynamic>;
+    if (actualAnalysis['foods'] is List) {
+      final foods = actualAnalysis['foods'] as List<dynamic>;
       
       for (int i = 0; i < foods.length; i++) {
-        final foodData = foods[i] as Map<String, dynamic>;
+        // Foods can be strings or objects
+        Map<String, dynamic> foodData;
+        if (foods[i] is String) {
+          // Simple string food name - create basic food item
+          foodData = {
+            'name': foods[i] as String,
+            'description': '',
+            'estimatedWeight': 100.0,
+            'confidence': 0.7,
+          };
+        } else {
+          foodData = foods[i] as Map<String, dynamic>;
+        }
         
         // Extract nutrition data
         NutritionData nutrition;
         if (foodData['nutrition'] != null) {
           nutrition = NutritionData.fromMap(foodData['nutrition'] as Map<String, dynamic>);
-        } else if (foodData['macros'] != null) {
-          // Handle alternative format from Cloud Function
-          final macros = foodData['macros'] as Map<String, dynamic>;
-          nutrition = NutritionData(
-            calories: (foodData['calories'] as num?)?.toDouble() ?? 0.0,
-            protein: (macros['protein'] as num?)?.toDouble() ?? 0.0,
-            carbs: (macros['carbs'] as num?)?.toDouble() ?? 0.0,
-            fat: (macros['fats'] as num?)?.toDouble() ?? 0.0,
-          );
         } else {
-          nutrition = NutritionData.zero;
+          // Use macros from top-level response (shared across all foods) or from food item
+          Map<String, dynamic>? macrosData;
+          double? totalCalories;
+          
+          if (foodData['macros'] != null) {
+            macrosData = foodData['macros'] as Map<String, dynamic>;
+            totalCalories = (foodData['calories'] as num?)?.toDouble();
+          } else if (actualAnalysis['macros'] != null) {
+            // Use top-level macros - divide by number of foods
+            macrosData = actualAnalysis['macros'] as Map<String, dynamic>;
+            final foodCount = foods.length;
+            final topCalories = (actualAnalysis['calories'] as num?)?.toDouble() ?? 0.0;
+            totalCalories = topCalories / foodCount;
+          }
+          
+          if (macrosData != null) {
+            nutrition = NutritionData(
+              calories: totalCalories ?? 0.0,
+              protein: (macrosData['protein'] as num?)?.toDouble() ?? 0.0,
+              carbs: (macrosData['carbs'] as num?)?.toDouble() ?? 0.0,
+              fat: (macrosData['fats'] as num?)?.toDouble() ?? 0.0,
+            );
+          } else {
+            nutrition = NutritionData.zero;
+          }
         }
         
         foodItems.add(
