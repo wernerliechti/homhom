@@ -25,8 +25,10 @@ class AINutritionService {
     double? dishWeight,
   }) async {
     final apiKey = await getOpenAIKey();
+    
+    // If no API key, this method will fail and Firebase fallback will be used
     if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('OpenAI API key not configured');
+      throw Exception('Local OpenAI API key not available - Firebase fallback will be used');
     }
 
     try {

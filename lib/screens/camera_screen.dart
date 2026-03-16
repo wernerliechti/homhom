@@ -115,25 +115,25 @@ class _CameraScreenState extends State<CameraScreen> {
     return FutureBuilder<bool>(
       future: provider.isAIConfigured(),
       builder: (context, snapshot) {
-        final isConfigured = snapshot.data ?? false;
+        final hasLocalKey = snapshot.data ?? false;
+        // AI analysis is always ready - either via local OpenAI key or Firebase fallback
+        final isReady = true;
         
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isConfigured 
-                ? AppTheme.success.withAlpha(20) 
-                : AppTheme.warning.withAlpha(20),
+            color: AppTheme.success.withAlpha(20),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isConfigured ? AppTheme.success : AppTheme.warning,
+              color: AppTheme.success,
               width: 1,
             ),
           ),
           child: Row(
             children: [
-              Icon(
-                isConfigured ? Icons.check_circle : Icons.warning,
-                color: isConfigured ? AppTheme.success : AppTheme.warning,
+              const Icon(
+                Icons.check_circle,
+                color: AppTheme.success,
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -141,19 +141,19 @@ class _CameraScreenState extends State<CameraScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      isConfigured ? 'AI Analysis Ready' : 'AI Setup Required',
+                    const Text(
+                      'AI Analysis Ready',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: isConfigured ? AppTheme.success : AppTheme.warning,
+                        color: AppTheme.success,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      isConfigured 
-                          ? 'Food recognition and nutrition analysis enabled'
-                          : 'Configure OpenAI API key in Goals → Settings',
+                      hasLocalKey 
+                          ? 'Using your OpenAI API key (unlimited)'
+                          : 'Using HOMs-powered analysis (Firebase)',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.textSecondary,
@@ -162,16 +162,14 @@ class _CameraScreenState extends State<CameraScreen> {
                   ],
                 ),
               ),
-              if (!isConfigured)
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const NewSettingsScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text('Setup'),
+              if (hasLocalKey)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.lightning_bolt,
+                    color: AppTheme.success.withAlpha(150),
+                    size: 16,
+                  ),
                 ),
             ],
           ),
