@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../models/hom_balance.dart';
 import 'receipt_validator.dart';
+import 'firebase_service.dart';
 
 class HomService {
   static const _storage = FlutterSecureStorage();
@@ -43,13 +44,35 @@ class HomService {
 
   Future<void> _loadBalance() async {
     try {
-      final balanceData = await _storage.read(key: _balanceKey);
       final apiKey = await _storage.read(key: _apiKeyKey);
       
       if (apiKey != null && apiKey.isNotEmpty) {
         // User has their own API key - unlimited mode
         _currentBalance = HomBalance.unlimited(apiKey);
-      } else if (balanceData != null) {
+        _balanceController.add(_currentBalance!);
+        return;
+      }
+
+      // Try to load from Firestore first (source of truth)
+      try {
+        final firebaseBalance = await FirebaseService().getHoMsBalance();
+        _currentBalance = HomBalance(
+          balance: firebaseBalance,
+          isUnlimited: false,
+          userApiKey: null,
+          lastUpdated: DateTime.now(),
+        );
+        print('✅ Loaded HOMs balance from Firestore: $firebaseBalance');
+        await _saveBalance(); // Cache locally
+        _balanceController.add(_currentBalance!);
+        return;
+      } catch (firebaseError) {
+        print('⚠️ Could not load from Firestore, trying local cache: $firebaseError');
+      }
+
+      // Fall back to local storage if Firestore is unavailable
+      final balanceData = await _storage.read(key: _balanceKey);
+      if (balanceData != null) {
         // Parse stored balance
         final balanceJson = Map<String, dynamic>.from(
           Uri.splitQueryString(balanceData)
@@ -61,15 +84,17 @@ class HomService {
           'userApiKey': balanceJson['userApiKey'],
           'lastUpdated': balanceJson['lastUpdated'] ?? DateTime.now().toIso8601String(),
         });
+        print('⚠️ Using cached HOMs balance (Firestore unavailable): ${_currentBalance!.balance}');
       } else {
         // New user - start with free HOMs
         _currentBalance = HomBalance.initial();
         await _saveBalance();
+        print('📱 New user - initialized with free HOMs');
       }
       
       _balanceController.add(_currentBalance!);
     } catch (e) {
-      print('Error loading HOM balance: $e');
+      print('❌ Error loading HOM balance: $e');
       _currentBalance = HomBalance.initial();
       _balanceController.add(_currentBalance!);
     }
@@ -135,6 +160,17 @@ class HomService {
     try {
       _currentBalance = _currentBalance!.consumeHom();
       await _saveBalance();
+      
+      // Update Firestore with new balance (consumed by local app, Cloud Function will handle via API)
+      // Note: Cloud Functions will also consume and return the updated balance
+      try {
+        await FirebaseService().updateHoMsBalance(_currentBalance!.balance);
+        print('✅ Updated Firestore after consuming HOM');
+      } catch (e) {
+        print('⚠️ Failed to update Firestore balance: $e');
+        // Continue anyway - local balance is what matters for the UI
+      }
+      
       _balanceController.add(_currentBalance!);
       return true;
     } catch (e) {
@@ -222,6 +258,15 @@ class HomService {
       if (_currentBalance != null && !_currentBalance!.isUnlimited) {
         _currentBalance = _currentBalance!.addHoms(pack.homs);
         await _saveBalance();
+        
+        // IMPORTANT: Also update Firestore (single source of truth)
+        try {
+          await FirebaseService().updateHoMsBalance(_currentBalance!.balance);
+          print('✅ Updated Firestore with new HOMs balance');
+        } catch (e) {
+          print('⚠️ Failed to update Firestore, but local balance updated: $e');
+        }
+        
         _balanceController.add(_currentBalance!);
       }
       
