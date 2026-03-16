@@ -312,7 +312,10 @@ class FirebaseService {
       // This bypasses any SDK-level auth context issues
       const String projectId = 'homhom-app';
       const String region = 'us-central1';
-      final String url = 'https://$region-$projectId.cloudfunctions.net/$functionName';
+      
+      // Map function names: processMeal → processMealHttp (the new HTTP endpoint)
+      final String endpointName = functionName == 'processMeal' ? 'processMealHttp' : functionName;
+      final String url = 'https://$region-$projectId.cloudfunctions.net/$endpointName';
       
       print('   URL: $url');
       
@@ -328,22 +331,27 @@ class FirebaseService {
       print('   HTTP Status: ${response.statusCode}');
       
       if (response.statusCode != 200) {
-        final errorData = jsonDecode(response.body);
-        print('❌ Cloud Function error response: $errorData');
+        print('❌ Cloud Function error response: ${response.body.substring(0, 200)}');
         
         if (response.statusCode == 401) {
           throw Exception('unauthenticated: Invalid or expired auth token');
         } else if (response.statusCode == 403) {
           throw Exception('permission-denied: User does not have permission');
         } else {
-          throw Exception('${errorData['error']['message'] ?? 'Unknown error'}');
+          // Try to parse as JSON, fallback to status code message
+          try {
+            final errorData = jsonDecode(response.body);
+            throw Exception('${errorData['error']['message'] ?? 'Unknown error (${response.statusCode})'}');
+          } catch (e) {
+            throw Exception('Cloud Function error (${response.statusCode}): ${response.body.substring(0, 100)}');
+          }
         }
       }
       
       final responseData = jsonDecode(response.body);
       print('✅ Cloud Function succeeded');
       
-      // Return the result data (Firebase wraps it in .result)
+      // Return the result data (Cloud Function returns { result: {...} })
       return Map<String, dynamic>.from(responseData['result'] ?? responseData);
       
     } catch (e) {
