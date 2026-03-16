@@ -46,12 +46,14 @@ class FirebaseProvider with ChangeNotifier {
         } catch (signInError) {
           // Pigeon deserialization errors often occur even when auth succeeds
           if (signInError.toString().contains('PigeonUserDetails')) {
-            print('⚠️ Pigeon deserialization error detected - checking if user is authenticated...');
-            await Future.delayed(Duration(milliseconds: 500));
+            print('⚠️ Pigeon deserialization error detected');
+            print('   Waiting 2 seconds for auth state and ID token to settle...');
+            await Future.delayed(Duration(seconds: 2));
             _currentUser = _firebaseService.currentUser;
             if (_currentUser != null) {
               print('✅ User IS authenticated despite Pigeon error, UID: ${_currentUser?.uid}');
-              print('   Proceeding - this is a known SDK issue');
+              print('   Waiting additional time for ID token generation...');
+              await Future.delayed(Duration(seconds: 1));
               // Silently continue - auth succeeded
             } else {
               throw signInError;

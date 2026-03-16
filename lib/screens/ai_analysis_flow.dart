@@ -86,11 +86,15 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
               // Pigeon deserialization bug: auth may have succeeded despite error
               if (authError.toString().contains('PigeonUserDetails')) {
                 print('⚠️ Pigeon deserialization error detected');
-                await Future.delayed(Duration(milliseconds: 500));
+                print('   Waiting for auth state to settle...');
+                // Wait longer to allow ID token to be generated
+                await Future.delayed(Duration(seconds: 2));
                 
                 if (firebaseService.currentUser != null) {
                   print('✅ User IS authenticated despite error: ${firebaseService.currentUser?.uid}');
-                  print('   (Known Pigeon bug - auth succeeded, proceeding...)');
+                  print('   (Known Pigeon bug - auth succeeded)');
+                  print('   Waiting additional time for ID token generation...');
+                  await Future.delayed(Duration(seconds: 1));
                   // Continue - auth succeeded despite the error
                 } else {
                   print('❌ Real authentication failure');
@@ -124,22 +128,63 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
           print('📸 Image converted to base64 (${base64Image.length} bytes)');
           
           // Call Cloud Function
-          final response = await firebaseService.processMeal(
-            imageBase64: base64Image,
-            userPreferences: widget.dishName != null 
-              ? {'dishName': widget.dishName}
-              : null,
-          );
-          
-          // Parse response and convert to FoodItem objects
-          if (response['analysis'] != null) {
-            final analysisData = response['analysis'] as Map<String, dynamic>;
-            foodItems = _parseFoodItemsFromAnalysis(analysisData);
+          try {
+            final response = await firebaseService.processMeal(
+              imageBase64: base64Image,
+              userPreferences: widget.dishName != null 
+                ? {'dishName': widget.dishName}
+                : null,
+            );
             
-            print('✅ Analysis completed via Firebase Cloud Function');
-            print('📊 Remaining HOMs: ${response['remainingHoms']}');
-          } else {
-            throw Exception('No analysis data received from server');
+            // Parse response and convert to FoodItem objects
+            if (response['analysis'] != null) {
+              final analysisData = response['analysis'] as Map<String, dynamic>;
+              foodItems = _parseFoodItemsFromAnalysis(analysisData);
+              
+              print('✅ Analysis completed via Firebase Cloud Function');
+              print('📊 Remaining HOMs: ${response['remainingHoms']}');
+            } else {
+              throw Exception('No analysis data received from server');
+            }
+          } catch (cloudFunctionError) {
+            // Cloud Functions returned "unauthenticated" - ID token was not sent
+            if (cloudFunctionError.toString().contains('unauthenticated')) {
+              print('⚠️ Cloud Function rejected auth - ID token may not be cached');
+              print('   Attempting to recover: sign out and sign in again...');
+              
+              try {
+                // Sign out to clear any corrupted auth state
+                await firebaseService.signOut();
+                print('✅ Signed out');
+                
+                // Sign in again to get a fresh ID token
+                await firebaseService.signInAnonymously();
+                print('✅ Signed in again');
+                
+                // Retry the Cloud Function call
+                print('🔄 Retrying Cloud Function call...');
+                final retryResponse = await firebaseService.processMeal(
+                  imageBase64: base64Image,
+                  userPreferences: widget.dishName != null 
+                    ? {'dishName': widget.dishName}
+                    : null,
+                );
+                
+                if (retryResponse['analysis'] != null) {
+                  final analysisData = retryResponse['analysis'] as Map<String, dynamic>;
+                  foodItems = _parseFoodItemsFromAnalysis(analysisData);
+                  print('✅ Analysis completed via Firebase Cloud Function (retry)');
+                  print('📊 Remaining HOMs: ${retryResponse['remainingHoms']}');
+                } else {
+                  throw Exception('No analysis data received from server');
+                }
+              } catch (recoveryError) {
+                print('❌ Recovery failed: $recoveryError');
+                rethrow;
+              }
+            } else {
+              rethrow;
+            }
           }
         } catch (firebaseError) {
           print('❌ Firebase analysis failed: $firebaseError');

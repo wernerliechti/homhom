@@ -168,6 +168,21 @@ class FirebaseService {
     }
 
     try {
+      // Attempt to refresh ID token
+      // If Pigeon error occurred, the token may not be cached properly
+      // Force a fresh token generation
+      print('🔑 Ensuring fresh ID token for Cloud Function call...');
+      try {
+        final idToken = await _auth.currentUser?.getIdToken(true);
+        if (idToken != null && idToken.isNotEmpty) {
+          print('✅ ID token refreshed: ${idToken.substring(0, 20)}...');
+        }
+      } catch (tokenError) {
+        print('⚠️ Token refresh error (non-fatal): $tokenError');
+        // Token may not be available yet, but auth state is valid
+        // Cloud Functions SDK will try to get it automatically
+      }
+      
       final response = await _callCloudFunction(
         'processMeal',
         {
