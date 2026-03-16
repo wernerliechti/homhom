@@ -158,8 +158,25 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
                 print('✅ Signed out');
                 
                 // Sign in again to get a fresh ID token
-                await firebaseService.signInAnonymously();
-                print('✅ Signed in again');
+                // This may trigger Pigeon error again
+                try {
+                  await firebaseService.signInAnonymously();
+                  print('✅ Signed in again');
+                } catch (signInError) {
+                  // Even if Pigeon error occurs, check if auth succeeded
+                  if (signInError.toString().contains('PigeonUserDetails')) {
+                    print('⚠️ Pigeon error during recovery sign-in');
+                    await Future.delayed(Duration(seconds: 2));
+                    if (firebaseService.currentUser != null) {
+                      print('✅ User authenticated despite error: ${firebaseService.currentUser?.uid}');
+                      // Continue with retry - don't throw
+                    } else {
+                      throw signInError;
+                    }
+                  } else {
+                    throw signInError;
+                  }
+                }
                 
                 // Retry the Cloud Function call
                 print('🔄 Retrying Cloud Function call...');
