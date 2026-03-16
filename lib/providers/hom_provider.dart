@@ -115,6 +115,18 @@ class HomProvider with ChangeNotifier {
     }
   }
 
+  /// Sync local balance to Firestore (use if out of sync)
+  Future<void> syncBalanceToFirestore() async {
+    try {
+      await _homService.syncBalanceToFirestore();
+      _lastError = null;
+      notifyListeners();
+    } catch (e) {
+      _lastError = e.toString();
+      notifyListeners();
+    }
+  }
+
   /// Clear any error messages
   void clearError() {
     _lastError = null;

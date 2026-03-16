@@ -30,6 +30,21 @@ class HomService {
     // Load current balance
     await _loadBalance();
     
+    // Try to sync balance to Firestore if it's out of sync
+    // This handles the case where local balance is ahead of Firestore
+    if (_currentBalance != null && !_currentBalance!.isUnlimited) {
+      try {
+        final firebaseBalance = await FirebaseService().getHoMsBalance();
+        if (firebaseBalance < _currentBalance!.balance) {
+          print('⚠️ Local balance (${_currentBalance!.balance}) is ahead of Firestore ($firebaseBalance)');
+          print('🔄 Syncing local balance to Firestore...');
+          await FirebaseService().updateHoMsBalance(_currentBalance!.balance);
+        }
+      } catch (e) {
+        print('⚠️ Could not sync balance during init: $e (continuing anyway)');
+      }
+    }
+    
     // Initialize in-app purchases
     await _initializeInAppPurchases();
     
@@ -298,6 +313,21 @@ class HomService {
       print('✅ Updated HOMs balance from Firebase: $remainingHoms');
     } catch (e) {
       print('Error updating balance from Firebase: $e');
+    }
+  }
+
+  /// Sync local balance to Firestore (use if out of sync)
+  Future<void> syncBalanceToFirestore() async {
+    if (_currentBalance == null || _currentBalance!.isUnlimited) {
+      return;
+    }
+
+    try {
+      await FirebaseService().updateHoMsBalance(_currentBalance!.balance);
+      print('✅ Synced local balance to Firestore: ${_currentBalance!.balance}');
+    } catch (e) {
+      print('❌ Error syncing balance to Firestore: $e');
+      rethrow;
     }
   }
 
