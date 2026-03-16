@@ -129,11 +129,21 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
           
           // Call Cloud Function
           try {
+            // Build preferences with all available info
+            final Map<String, dynamic> userPreferences = {};
+            if (widget.dishName != null) {
+              userPreferences['dishName'] = widget.dishName;
+            }
+            if (widget.plateDiameter != null) {
+              userPreferences['plateDiameter'] = widget.plateDiameter;
+            }
+            if (widget.dishWeight != null) {
+              userPreferences['dishWeight'] = widget.dishWeight;
+            }
+            
             final response = await firebaseService.processMeal(
               imageBase64: base64Image,
-              userPreferences: widget.dishName != null 
-                ? {'dishName': widget.dishName}
-                : null,
+              userPreferences: userPreferences.isNotEmpty ? userPreferences : null,
             );
             
             // Parse response and convert to FoodItem objects
@@ -186,9 +196,7 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
                 print('🔄 Retrying Cloud Function call...');
                 final retryResponse = await firebaseService.processMeal(
                   imageBase64: base64Image,
-                  userPreferences: widget.dishName != null 
-                    ? {'dishName': widget.dishName}
-                    : null,
+                  userPreferences: userPreferences.isNotEmpty ? userPreferences : null,
                 );
                 
                 if (retryResponse['analysis'] != null) {
