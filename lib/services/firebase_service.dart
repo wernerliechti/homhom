@@ -329,24 +329,26 @@ class FirebaseService {
       ).timeout(Duration(seconds: 30));
       
       print('   HTTP Status: ${response.statusCode}');
-      print('   Response body: ${response.body}');
       
       if (response.statusCode != 200) {
-        final bodyPreview = response.body.length > 200 
-          ? response.body.substring(0, 200) 
-          : response.body;
-        print('❌ Cloud Function error response: $bodyPreview');
+        print('❌ Cloud Function error (${response.statusCode})');
+        print('   Full response: ${response.body}');
         
         if (response.statusCode == 401) {
           throw Exception('unauthenticated: Invalid or expired auth token');
         } else if (response.statusCode == 403) {
           throw Exception('permission-denied: User does not have permission');
         } else if (response.statusCode == 500) {
-          // Try to parse as JSON, fallback to status code message
+          // Try to parse as JSON
           try {
             final errorData = jsonDecode(response.body);
-            throw Exception('Cloud Function error: ${errorData['error']['message'] ?? 'Internal server error'}');
-          } catch (parseError) {
+            if (errorData is Map && errorData.containsKey('error')) {
+              throw Exception('Cloud Function error: ${errorData['error']['message'] ?? 'Internal server error'}');
+            } else {
+              throw Exception('Cloud Function 500: ${response.body}');
+            }
+          } catch (e) {
+            // If parsing fails, just throw the raw body
             throw Exception('Cloud Function 500 error: ${response.body}');
           }
         } else {
