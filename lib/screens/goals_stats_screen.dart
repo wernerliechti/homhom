@@ -188,12 +188,12 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
 
   Widget _buildStatsGrid(NutritionStats stats) {
     final kpis = [
-      _StatKPI('Meals Tracked', stats.mealsTracked.toString(), Icons.restaurant_menu, AppTheme.primary),
-      _StatKPI('Avg Calories', stats.averageCaloriesFormatted, Icons.local_fire_department, AppTheme.calories),
-      _StatKPI('Deficit Days', stats.daysWithCalorieDeficit.toString(), Icons.trending_down, AppTheme.success),
-      _StatKPI('Avg Delta', stats.averageCalorieDeltaFormatted, Icons.swap_vert, _getDeltaColor(stats.averageCalorieDelta)),
-      _StatKPI('Protein Goals', stats.proteinGoalHitRateFormatted, Icons.fitness_center, AppTheme.protein),
-      _StatKPI('Consistency', stats.loggingConsistencyFormatted, Icons.checklist, _getConsistencyColor(stats.loggingConsistency)),
+      _StatKPI('Meals Tracked', stats.mealsTracked.toString(), Icons.restaurant_menu, AppTheme.primary, description: 'Total number of meals you have logged during this goal period.'),
+      _StatKPI('Avg Calories', stats.averageCaloriesFormatted, Icons.local_fire_department, AppTheme.calories, description: 'Average daily calorie intake calculated from all meals logged.'),
+      _StatKPI('Deficit Days', stats.daysWithCalorieDeficit.toString(), Icons.trending_down, AppTheme.success, description: 'Number of days where your calorie intake was below your daily goal.'),
+      _StatKPI('Avg Delta', stats.averageCalorieDeltaFormatted, Icons.swap_vert, _getDeltaColor(stats.averageCalorieDelta), description: 'Average difference between your goal and actual intake. Negative = under goal.'),
+      _StatKPI('Protein Goals', stats.proteinGoalHitRateFormatted, Icons.fitness_center, AppTheme.protein, description: 'Percentage of days where you met or exceeded your protein intake goal.'),
+      _StatKPI('Consistency', stats.loggingConsistencyFormatted, Icons.checklist, _getConsistencyColor(stats.loggingConsistency), description: 'Percentage of days in this period where you logged at least one meal.'),
     ];
 
     return Padding(
@@ -224,10 +224,31 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            kpi.icon,
-            color: kpi.color,
-            size: 24,
+          Row(
+            children: [
+              Icon(
+                kpi.icon,
+                color: kpi.color,
+                size: 24,
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => _showKPIExplanation(kpi),
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kpi.color.withAlpha(50),
+                  ),
+                  child: Icon(
+                    Icons.help_outline,
+                    size: 12,
+                    color: kpi.color,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -246,6 +267,28 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
               color: AppTheme.textSecondary,
               fontWeight: FontWeight.w500,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showKPIExplanation(_StatKPI kpi) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(kpi.icon, color: kpi.color),
+            const SizedBox(width: 8),
+            Text(kpi.label),
+          ],
+        ),
+        content: Text(kpi.description),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
           ),
         ],
       ),
@@ -880,23 +923,13 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
 
       if (mounted) {
         HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Goal period deleted: ${goalPeriod.dateRangeString}'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'Undo',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Undo not yet implemented'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -937,6 +970,7 @@ class _StatKPI {
   final String value;
   final IconData icon;
   final Color color;
+  final String description;
 
-  const _StatKPI(this.label, this.value, this.icon, this.color);
+  const _StatKPI(this.label, this.value, this.icon, this.color, {required this.description});
 }

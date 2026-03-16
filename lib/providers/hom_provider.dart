@@ -89,6 +89,44 @@ class HomProvider with ChangeNotifier {
   /// Get available HOM packs for purchase
   List<HomPack> get availableHomPacks => HomPack.availablePacks;
 
+  /// Refresh balance from Firestore (useful after Cloud Function operations)
+  Future<void> refreshBalance() async {
+    try {
+      await _homService.refreshBalance();
+      _balance = _homService.currentBalance;
+      _lastError = null;
+      notifyListeners();
+    } catch (e) {
+      _lastError = e.toString();
+      notifyListeners();
+    }
+  }
+
+  /// Update balance from Firestore value (called after Cloud Function analysis)
+  Future<void> updateBalanceFromFirebase(int remainingHoms) async {
+    try {
+      await _homService.updateBalanceFromFirebase(remainingHoms);
+      _balance = _homService.currentBalance;
+      _lastError = null;
+      notifyListeners();
+    } catch (e) {
+      _lastError = e.toString();
+      notifyListeners();
+    }
+  }
+
+  /// Sync local balance to Firestore (use if out of sync)
+  Future<void> syncBalanceToFirestore() async {
+    try {
+      await _homService.syncBalanceToFirestore();
+      _lastError = null;
+      notifyListeners();
+    } catch (e) {
+      _lastError = e.toString();
+      notifyListeners();
+    }
+  }
+
   /// Clear any error messages
   void clearError() {
     _lastError = null;

@@ -7,10 +7,12 @@ import '../screens/api_config_screen.dart';
 
 class HomBalanceIndicator extends StatelessWidget {
   final bool compact;
+  final bool disabled; // Set to true to disable tap navigation (e.g., on PurchaseHomsScreen)
 
   const HomBalanceIndicator({
     super.key,
     this.compact = false,
+    this.disabled = false,
   });
 
   @override
@@ -60,7 +62,7 @@ class HomBalanceIndicator extends StatelessWidget {
         final balance = provider.balance!;
         
         return GestureDetector(
-          onTap: () => _onTapped(context, balance),
+          onTap: disabled ? null : () => _onTapped(context, balance),
           child: Container(
             padding: EdgeInsets.symmetric(
               horizontal: compact ? 8 : 12,
@@ -117,14 +119,7 @@ class HomBalanceIndicator extends StatelessWidget {
                                 : AppTheme.error,
                   ),
                 ),
-                if (!compact && !balance.isUnlimited) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    size: 16,
-                    color: AppTheme.textSecondary,
-                  ),
-                ],
+
               ],
             ),
           ),

@@ -5,6 +5,7 @@ import 'dart:io';
 import '../models/food_item.dart';
 import '../models/nutrition_data.dart';
 import '../providers/nutrition_provider.dart';
+import '../providers/hom_provider.dart';
 import '../services/firebase_service.dart';
 import '../theme/app_theme.dart';
 import 'ai_loading_screen.dart';
@@ -152,6 +153,12 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
             if (response['analysis'] != null) {
               final analysisData = response['analysis'] as Map<String, dynamic>;
               foodItems = _parseFoodItemsFromAnalysis(analysisData);
+              
+              // Update local HOMs balance with the value from Cloud Function
+              if (response['remainingHoms'] != null) {
+                final homProvider = context.read<HomProvider>();
+                await homProvider.updateBalanceFromFirebase(response['remainingHoms'] as int);
+              }
               
               print('✅ Analysis completed via Firebase Cloud Function');
               print('📊 Remaining HOMs: ${response['remainingHoms']}');

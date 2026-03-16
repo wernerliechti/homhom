@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/hom_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/hom_balance_indicator.dart';
+
 
 class ApiConfigScreen extends StatefulWidget {
   const ApiConfigScreen({super.key});
@@ -51,12 +51,6 @@ class _ApiConfigScreenState extends State<ApiConfigScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Current status
-                if (provider.balance != null) ...[
-                  const HomBalanceIndicator(),
-                  const SizedBox(height: 24),
-                ],
-
                 // Explanation card
                 Container(
                   padding: const EdgeInsets.all(16),

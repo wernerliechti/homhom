@@ -127,7 +127,7 @@ ${dishName != null ? '- When the dish name is provided, prioritize identifying c
 
 ''';
 
-    return '''Analyze this meal photo and identify all visible food items. For each food item, estimate the portion size and calculate detailed nutritional information.
+    return '''Analyze this meal photo and identify all visible food items. For each food item, estimate the portion size (WEIGHT OF FOOD ONLY, NOT INCLUDING PLATE) and calculate detailed nutritional information.
 ${dishName != null ? 'The user has identified this dish as: "$dishName". Use this information to improve accuracy of food identification and nutrition estimates.' : ''}
 
 ${context}${calibrationInstructions}

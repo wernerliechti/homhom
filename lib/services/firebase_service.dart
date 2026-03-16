@@ -384,6 +384,49 @@ class FirebaseService {
     }
   }
 
+  /// Get HOMs balance from Firestore (source of truth)
+  Future<int> getHoMsBalance() async {
+    try {
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final userDoc = await _firestore.collection('users').doc(currentUserId).get();
+      final userData = userDoc.data();
+
+      if (userData == null) {
+        print('⚠️ User document not found in Firestore');
+        return 0;
+      }
+
+      final balance = userData['balance'] as int? ?? 0;
+      print('📊 Retrieved HOMs balance from Firestore: $balance');
+      return balance;
+    } catch (e) {
+      print('❌ Error getting HOMs balance from Firestore: $e');
+      rethrow;
+    }
+  }
+
+  /// Update HOMs balance in Firestore (single source of truth)
+  Future<void> updateHoMsBalance(int newBalance) async {
+    try {
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _firestore.collection('users').doc(currentUserId).update({
+        'balance': newBalance,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      print('✅ Updated HOMs balance in Firestore: $newBalance');
+    } catch (e) {
+      print('❌ Error updating HOMs balance in Firestore: $e');
+      rethrow;
+    }
+  }
+
   /// Sign in anonymously
   Future<UserCredential> signInAnonymously() async {
     try {
