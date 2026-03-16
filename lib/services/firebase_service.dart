@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/hom_balance.dart';
 
 class FirebaseService {
@@ -176,12 +178,23 @@ class FirebaseService {
         final idToken = await _auth.currentUser?.getIdToken(true);
         if (idToken != null && idToken.isNotEmpty) {
           print('✅ ID token refreshed: ${idToken.substring(0, 20)}...');
+          // Verify token is not empty and has expected structure
+          final parts = idToken.split('.');
+          print('   Token structure: ${parts.length} parts (valid JWT has 3)');
+        } else {
+          print('⚠️ WARNING: ID token is empty or null!');
         }
       } catch (tokenError) {
         print('⚠️ Token refresh error (non-fatal): $tokenError');
         // Token may not be available yet, but auth state is valid
         // Cloud Functions SDK will try to get it automatically
       }
+      
+      // Additional debugging
+      print('🔐 Current auth state:');
+      print('   currentUser: ${_auth.currentUser?.uid}');
+      print('   isAnonymous: ${_auth.currentUser?.isAnonymous}');
+      print('   authStateListeners: active');
       
       final response = await _callCloudFunction(
         'processMeal',
@@ -283,16 +296,56 @@ class FirebaseService {
     Map<String, dynamic> data,
   ) async {
     try {
-      final functions = FirebaseFunctions.instance;
+      // Get fresh ID token to ensure it's available
+      final idToken = await _auth.currentUser?.getIdToken(true);
       
-      // Call the Cloud Function
-      final result = await functions.httpsCallable(functionName).call(data);
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception('Unable to get ID token. User may not be authenticated.');
+      }
       
-      // Return the response data
-      return Map<String, dynamic>.from(result.data ?? {});
-    } on FirebaseFunctionsException catch (e) {
-      print('Cloud Function error: ${e.code} - ${e.message}');
-      throw Exception('${e.code}: ${e.message}');
+      print('📡 Calling Cloud Function with explicit Authorization header...');
+      print('   Function: $functionName');
+      print('   User UID: ${_auth.currentUser?.uid}');
+      print('   Auth token: ${idToken.substring(0, 30)}...');
+      
+      // Use direct HTTP call with explicit Authorization header
+      // This bypasses any SDK-level auth context issues
+      const String projectId = 'homhom-app';
+      const String region = 'us-central1';
+      final String url = 'https://$region-$projectId.cloudfunctions.net/$functionName';
+      
+      print('   URL: $url');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({'data': data}),
+      ).timeout(Duration(seconds: 30));
+      
+      print('   HTTP Status: ${response.statusCode}');
+      
+      if (response.statusCode != 200) {
+        final errorData = jsonDecode(response.body);
+        print('❌ Cloud Function error response: $errorData');
+        
+        if (response.statusCode == 401) {
+          throw Exception('unauthenticated: Invalid or expired auth token');
+        } else if (response.statusCode == 403) {
+          throw Exception('permission-denied: User does not have permission');
+        } else {
+          throw Exception('${errorData['error']['message'] ?? 'Unknown error'}');
+        }
+      }
+      
+      final responseData = jsonDecode(response.body);
+      print('✅ Cloud Function succeeded');
+      
+      // Return the result data (Firebase wraps it in .result)
+      return Map<String, dynamic>.from(responseData['result'] ?? responseData);
+      
     } catch (e) {
       print('Error calling Cloud Function $functionName: $e');
       rethrow;
