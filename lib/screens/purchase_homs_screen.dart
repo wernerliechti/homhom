@@ -80,7 +80,7 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
                       ),
                       if (!widget.isPaywall) ...[
                         const SizedBox(height: 16),
-                        const HomBalanceIndicator(),
+                        const HomBalanceIndicator(disabled: true),
                       ],
                     ],
                   ),
@@ -91,7 +91,7 @@ class _PurchaseHomsScreenState extends State<PurchaseHomsScreen> {
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      const HomBalanceIndicator(),
+                      const HomBalanceIndicator(disabled: true),
                       const SizedBox(height: 20),
                       const Text(
                         'Buy HOM Packs',

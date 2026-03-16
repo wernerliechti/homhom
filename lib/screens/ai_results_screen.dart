@@ -362,11 +362,13 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
         setState(() {
           _itemEditMode[food.id] = false;
         });
+        Navigator.of(context).pop(); // Close modal after update
       },
       onCancel: () {
         setState(() {
           _itemEditMode[food.id] = false;
         });
+        Navigator.of(context).pop(); // Close modal on cancel
       },
     );
   }
