@@ -127,20 +127,20 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
           
           print('📸 Image converted to base64 (${base64Image.length} bytes)');
           
+          // Build preferences with all available info (outside try/catch so it's accessible in retry)
+          final Map<String, dynamic> userPreferences = {};
+          if (widget.dishName != null) {
+            userPreferences['dishName'] = widget.dishName;
+          }
+          if (widget.plateDiameter != null) {
+            userPreferences['plateDiameter'] = widget.plateDiameter;
+          }
+          if (widget.dishWeight != null) {
+            userPreferences['dishWeight'] = widget.dishWeight;
+          }
+          
           // Call Cloud Function
           try {
-            // Build preferences with all available info
-            final Map<String, dynamic> userPreferences = {};
-            if (widget.dishName != null) {
-              userPreferences['dishName'] = widget.dishName;
-            }
-            if (widget.plateDiameter != null) {
-              userPreferences['plateDiameter'] = widget.plateDiameter;
-            }
-            if (widget.dishWeight != null) {
-              userPreferences['dishWeight'] = widget.dishWeight;
-            }
-            
             final response = await firebaseService.processMeal(
               imageBase64: base64Image,
               userPreferences: userPreferences.isNotEmpty ? userPreferences : null,
