@@ -137,13 +137,17 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
             );
             
             // Parse response and convert to FoodItem objects
+            print('📋 Cloud Function response: $response');
+            
             if (response['analysis'] != null) {
               final analysisData = response['analysis'] as Map<String, dynamic>;
               foodItems = _parseFoodItemsFromAnalysis(analysisData);
               
               print('✅ Analysis completed via Firebase Cloud Function');
               print('📊 Remaining HOMs: ${response['remainingHoms']}');
+              print('🍽️ Food items identified: ${foodItems?.length ?? 0}');
             } else {
+              print('⚠️ No analysis in response. Response keys: ${response.keys.toList()}');
               throw Exception('No analysis data received from server');
             }
           } catch (cloudFunctionError) {
