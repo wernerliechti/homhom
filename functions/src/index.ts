@@ -5,8 +5,16 @@ import axios from "axios";
 admin.initializeApp();
 
 const db = admin.firestore();
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+// Get OpenAI API key from Runtime Config (set via firebase functions:config:set openai.key="...")
+const OPENAI_API_KEY = functions.config().openai?.key || process.env.OPENAI_API_KEY || "";
 const GOOGLE_PLAY_PACKAGE_NAME = "com.saynode.homhom";
+
+// Log if API key is configured (but don't log the actual key!)
+if (OPENAI_API_KEY) {
+  console.log("✅ OpenAI API key configured");
+} else {
+  console.warn("⚠️ WARNING: OpenAI API key not configured. Set with: firebase functions:config:set openai.key=\"sk-...\"");
+}
 
 interface ReceiptValidationRequest {
   purchaseToken: string;
