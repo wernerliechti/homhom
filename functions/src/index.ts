@@ -225,7 +225,7 @@ export const processMealHttp = functions.https.onRequest(
       if (!userData) {
         // Create user document if doesn't exist
         await db.collection("users").doc(userId).set({
-          balance: 10, // 10 free HOMs for new users
+          balance: 50, // 50 free HOMs for new users
           isUnlimited: false,
           createdAt: admin.firestore.Timestamp.now(),
           updatedAt: admin.firestore.Timestamp.now(),
@@ -339,7 +339,7 @@ export const setApiKey = functions.https.onCall(
         // Remove API key, revert to metered mode
         await userRef.update({
           isUnlimited: false,
-          balance: 10, // Reset with free HOMs
+          balance: 50, // Reset with free HOMs
           updatedAt: admin.firestore.Timestamp.now(),
         });
 
