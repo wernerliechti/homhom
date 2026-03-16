@@ -57,7 +57,9 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
 
   void _updateFoodItem(FoodItem updatedItem) {
     setState(() {
-      final index = _editableFoodItems.indexWhere((f) => f.id == updatedItem.id);
+      final index = _editableFoodItems.indexWhere(
+        (f) => f.id == updatedItem.id,
+      );
       if (index >= 0) {
         _editableFoodItems[index] = updatedItem;
         _calculateTotalNutrition();
@@ -106,11 +108,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.auto_awesome,
-            size: 48,
-            color: AppTheme.success,
-          ),
+          const Icon(Icons.auto_awesome, size: 48, color: AppTheme.success),
           const SizedBox(height: 12),
           const Text(
             'Analysis Complete!',
@@ -124,10 +122,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
           Text(
             'Found ${_editableFoodItems.length} food item${_editableFoodItems.length == 1 ? '' : 's'} • '
             'Tap to edit portions or macros',
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -149,10 +144,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
                 SizedBox(width: 8),
                 Text(
                   'Your Meal',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -196,10 +188,7 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               SizedBox(width: 8),
               Text(
                 'Meal Total',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -276,10 +265,14 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
         border: Border.all(color: color.withAlpha(50)),
       ),
       child: Column(
-        crossAxisAlignment: fullWidth ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment: fullWidth
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           Row(
-            mainAxisAlignment: fullWidth ? MainAxisAlignment.start : MainAxisAlignment.center,
+            mainAxisAlignment: fullWidth
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.center,
             children: [
               Text(
                 value,
@@ -336,8 +329,6 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
     );
   }
 
-
-
   void _updateFoodItemWeight(String foodId, double newWeight) {
     setState(() {
       final index = _editableFoodItems.indexWhere((f) => f.id == foodId);
@@ -383,7 +374,10 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Icon(Icons.save, size: 20),
           label: Text(_isSaving ? 'Saving Meal...' : 'Save to Timeline'),
@@ -433,7 +427,10 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
               .toMap(),
           'editedTotal': _totalNutrition.toMap(),
           'confidence': widget.foodItems.isNotEmpty
-              ? widget.foodItems.map((f) => f.confidence).reduce((a, b) => a + b) / widget.foodItems.length
+              ? widget.foodItems
+                        .map((f) => f.confidence)
+                        .reduce((a, b) => a + b) /
+                    widget.foodItems.length
               : 0.0,
         },
       );
@@ -445,15 +442,6 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       if (mounted) {
         HapticFeedback.mediumImpact();
         Navigator.of(context).pop(true); // Return success
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🍽️ Meal saved successfully!'),
-            backgroundColor: AppTheme.success,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -509,11 +497,21 @@ class _FoodItemEditWidgetState extends State<_FoodItemEditWidget> {
   @override
   void initState() {
     super.initState();
-    _weightController = TextEditingController(text: widget.foodItem.estimatedWeight.toStringAsFixed(1));
-    _caloriesController = TextEditingController(text: widget.foodItem.nutrition.calories.toStringAsFixed(0));
-    _proteinController = TextEditingController(text: widget.foodItem.nutrition.protein.toStringAsFixed(1));
-    _carbsController = TextEditingController(text: widget.foodItem.nutrition.carbs.toStringAsFixed(1));
-    _fatController = TextEditingController(text: widget.foodItem.nutrition.fat.toStringAsFixed(1));
+    _weightController = TextEditingController(
+      text: widget.foodItem.estimatedWeight.toStringAsFixed(1),
+    );
+    _caloriesController = TextEditingController(
+      text: widget.foodItem.nutrition.calories.toStringAsFixed(0),
+    );
+    _proteinController = TextEditingController(
+      text: widget.foodItem.nutrition.protein.toStringAsFixed(1),
+    );
+    _carbsController = TextEditingController(
+      text: widget.foodItem.nutrition.carbs.toStringAsFixed(1),
+    );
+    _fatController = TextEditingController(
+      text: widget.foodItem.nutrition.fat.toStringAsFixed(1),
+    );
   }
 
   @override
@@ -589,7 +587,11 @@ class _FoodItemEditWidgetState extends State<_FoodItemEditWidget> {
     );
   }
 
-  Widget _buildEditField(String label, TextEditingController controller, String unit) {
+  Widget _buildEditField(
+    String label,
+    TextEditingController controller,
+    String unit,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -619,7 +621,10 @@ class _FoodItemEditWidgetState extends State<_FoodItemEditWidget> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppTheme.primary, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             isDense: true,
           ),
           inputFormatters: [
@@ -637,7 +642,12 @@ class _FoodItemEditWidgetState extends State<_FoodItemEditWidget> {
     final carbs = double.tryParse(_carbsController.text);
     final fat = double.tryParse(_fatController.text);
 
-    if (weight == null || weight <= 0 || calories == null || protein == null || carbs == null || fat == null) {
+    if (weight == null ||
+        weight <= 0 ||
+        calories == null ||
+        protein == null ||
+        carbs == null ||
+        fat == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in all fields with valid numbers'),
