@@ -414,15 +414,19 @@ async function analyzeImageWithOpenAI(
             content: [
               {
                 type: "text",
-                text: `Analyze this meal image and provide detailed nutrition information in JSON format with:
-                - foods: array of identified foods
-                - calories: estimated total calories
-                - macros: { protein, carbs, fats } in grams
-                - vitamins: array of key vitamins
-                - allergens: array of detected allergens
-                - healthScore: 1-10 rating
-                
-                User preferences: ${JSON.stringify(preferences || {})}`,
+                text: `Analyze this meal image and provide detailed nutrition information as VALID JSON ONLY (no markdown, no code blocks, no explanations).
+
+Return a JSON object with:
+- foods: array of identified foods (strings)
+- calories: estimated total calories (number)
+- macros: { protein, carbs, fats } in grams (numbers)
+- vitamins: array of key vitamins (strings)
+- allergens: array of detected allergens (strings)
+- healthScore: 1-10 rating (number)
+
+User preferences: ${JSON.stringify(preferences || {})}
+
+Response must be VALID JSON ONLY, starting with { and ending with }`,
               },
               {
                 type: "image_url",
@@ -443,10 +447,15 @@ async function analyzeImageWithOpenAI(
       }
     );
 
-    const content = response.data.choices[0].message.content;
+    let content = response.data.choices[0].message.content;
+    
+    // Strip markdown code blocks if present (e.g., ```json ... ```)
+    content = content.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+    
     try {
       return JSON.parse(content);
-    } catch {
+    } catch (parseError) {
+      console.warn("Failed to parse JSON response, returning as rawAnalysis:", parseError);
       return { rawAnalysis: content };
     }
   } catch (error: any) {

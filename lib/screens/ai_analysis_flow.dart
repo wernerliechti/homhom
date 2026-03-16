@@ -251,13 +251,25 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
     Map<String, dynamic> actualAnalysis = analysisData;
     if (analysisData['rawAnalysis'] is String) {
       try {
-        final parsed = jsonDecode(analysisData['rawAnalysis'] as String);
+        var rawString = analysisData['rawAnalysis'] as String;
+        
+        // Strip markdown formatting (```json ... ```)
+        // Handle various whitespace patterns around the backticks
+        rawString = rawString
+            .replaceAll(RegExp(r'^```(json)?[\s\n]*'), '')  // Remove opening ```json
+            .replaceAll(RegExp(r'[\s\n]*```$'), '');        // Remove closing ```
+        
+        final preview = rawString.length > 100 ? rawString.substring(0, 100) : rawString;
+        print('📄 Raw analysis string (cleaned): $preview...');
+        
+        final parsed = jsonDecode(rawString);
         if (parsed is Map<String, dynamic>) {
           actualAnalysis = parsed;
           print('✅ Parsed rawAnalysis from string');
         }
       } catch (e) {
         print('⚠️ Failed to parse rawAnalysis: $e');
+        print('   Raw value: ${analysisData['rawAnalysis']}');
       }
     }
     
