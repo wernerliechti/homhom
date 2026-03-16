@@ -5,6 +5,7 @@ import 'dart:io';
 import '../models/food_item.dart';
 import '../models/nutrition_data.dart';
 import '../providers/nutrition_provider.dart';
+import '../providers/hom_provider.dart';
 import '../services/firebase_service.dart';
 import '../theme/app_theme.dart';
 import 'ai_loading_screen.dart';

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/food_item.dart';
 import '../models/nutrition_data.dart';
 import '../providers/nutrition_provider.dart';
+import '../providers/hom_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/identified_foods_section.dart';
 
