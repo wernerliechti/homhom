@@ -82,16 +82,31 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
             } catch (authError) {
               print('❌ Anonymous sign-in error: $authError');
               print('   Error type: ${authError.runtimeType}');
-              print('   Error toString: ${authError.toString()}');
-              print('   Troubleshooting: Try these steps:');
-              print('   1. Go to Firebase Console → Authentication → Sign-in method');
-              print('   2. Verify Anonymous is enabled');
-              print('   3. Go to Project Settings → Android app');
-              print('   4. Verify your SHA-1 fingerprint is listed');
-              print('   5. Verify package name is: com.saynode.homhom');
-              print('   6. Try: flutter clean && flutter run');
-              // Re-throw the actual Firebase error so we can debug it
-              throw authError;
+              
+              // Pigeon deserialization bug: auth may have succeeded despite error
+              if (authError.toString().contains('PigeonUserDetails')) {
+                print('⚠️ Pigeon deserialization error detected');
+                await Future.delayed(Duration(milliseconds: 500));
+                
+                if (firebaseService.currentUser != null) {
+                  print('✅ User IS authenticated despite error: ${firebaseService.currentUser?.uid}');
+                  print('   (Known Pigeon bug - auth succeeded, proceeding...)');
+                  // Continue - auth succeeded despite the error
+                } else {
+                  print('❌ Real authentication failure');
+                  throw authError;
+                }
+              } else {
+                print('   Error toString: ${authError.toString()}');
+                print('   Troubleshooting: Try these steps:');
+                print('   1. Go to Firebase Console → Authentication → Sign-in method');
+                print('   2. Verify Anonymous is enabled');
+                print('   3. Go to Project Settings → Android app');
+                print('   4. Verify your SHA-1 fingerprint is listed');
+                print('   5. Verify package name is: com.saynode.homhom');
+                print('   6. Try: flutter clean && flutter run');
+                throw authError;
+              }
             }
           }
           
