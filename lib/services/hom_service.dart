@@ -236,6 +236,26 @@ class HomService {
     }
   }
 
+  /// Reload balance from local storage
+  Future<void> refreshBalance() async {
+    await _loadBalance();
+  }
+
+  /// Update balance with value from Firestore (after Cloud Function operations)
+  Future<void> updateBalanceFromFirebase(int remainingHoms) async {
+    if (_currentBalance == null) return;
+    
+    try {
+      // Update the balance to match Firestore
+      _currentBalance = _currentBalance!.copyWith(balance: remainingHoms);
+      await _saveBalance();
+      _balanceController.add(_currentBalance!);
+      print('✅ Updated HOMs balance from Firebase: $remainingHoms');
+    } catch (e) {
+      print('Error updating balance from Firebase: $e');
+    }
+  }
+
   void dispose() {
     _purchaseSubscription.cancel();
     _balanceController.close();

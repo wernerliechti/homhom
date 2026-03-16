@@ -435,6 +435,10 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
         },
       );
 
+      // Refresh HOMs balance from Firestore (Cloud Function may have decremented it)
+      final homProvider = context.read<HomProvider>();
+      await homProvider.refreshBalance();
+
       if (mounted) {
         HapticFeedback.mediumImpact();
         Navigator.of(context).pop(true); // Return success

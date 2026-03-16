@@ -153,6 +153,12 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
               final analysisData = response['analysis'] as Map<String, dynamic>;
               foodItems = _parseFoodItemsFromAnalysis(analysisData);
               
+              // Update local HOMs balance with the value from Cloud Function
+              if (response['remainingHoms'] != null) {
+                final homProvider = context.read<HomProvider>();
+                await homProvider.updateBalanceFromFirebase(response['remainingHoms'] as int);
+              }
+              
               print('✅ Analysis completed via Firebase Cloud Function');
               print('📊 Remaining HOMs: ${response['remainingHoms']}');
               print('🍽️ Food items identified: ${foodItems?.length ?? 0}');
