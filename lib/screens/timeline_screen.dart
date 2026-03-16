@@ -676,19 +676,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
-            action: SnackBarAction(
-              label: 'Undo',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Undo not yet implemented'),
-                    behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
-            ),
           ),
         );
       }

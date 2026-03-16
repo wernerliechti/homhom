@@ -371,8 +371,9 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.success.withAlpha(15),
+        color: AppTheme.secondary.withAlpha(15),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.secondary.withAlpha(50)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,63 +381,33 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
           Row(
             children: [
               const Icon(
-                Icons.psychology,
-                color: AppTheme.success,
+                Icons.info_outline,
+                color: AppTheme.secondary,
                 size: 20,
               ),
               const SizedBox(width: 8),
               const Text(
-                'AI Analysis Benefits',
+                'AI Analysis Disclaimer',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.success,
+                  color: AppTheme.secondary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          ..._buildBenefitsList(),
+          const Text(
+            'AI makes mistakes. While meal analysis is fast and convenient, it may underestimate or overestimate nutrition values. Use this information as guidance, not as a medical diagnosis. For medical nutrition advice, consult a healthcare professional.',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondary,
+              height: 1.4,
+            ),
+          ),
         ],
       ),
     );
-  }
-
-  List<Widget> _buildBenefitsList() {
-    final benefits = [
-      'Identifies multiple foods in mixed dishes',
-      'Estimates calories, protein, carbs, and fat',
-      'Calculates portion sizes from visual analysis',
-      'Includes micronutrients when significant',
-      'Learns from your portion preferences over time',
-    ];
-
-    return benefits.map((benefit) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(
-              Icons.check_circle_outline,
-              color: AppTheme.success,
-              size: 16,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                benefit,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textSecondary,
-                  height: 1.3,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }).toList();
   }
 
   Widget _buildActionButtons() {

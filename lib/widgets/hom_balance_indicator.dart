@@ -117,14 +117,7 @@ class HomBalanceIndicator extends StatelessWidget {
                                 : AppTheme.error,
                   ),
                 ),
-                if (!compact && !balance.isUnlimited) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    size: 16,
-                    color: AppTheme.textSecondary,
-                  ),
-                ],
+
               ],
             ),
           ),

@@ -585,6 +585,12 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             controller: controller,
             keyboardType: TextInputType.number,
             textAlign: fullWidth ? TextAlign.start : TextAlign.center,
+            onTap: () {
+              // Clear the field when user taps on it (allow them to type directly)
+              if (controller.text == '0' || controller.text.isEmpty) {
+                controller.clear();
+              }
+            },
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
             ],
@@ -861,15 +867,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
       if (mounted) {
         HapticFeedback.mediumImpact();
         Navigator.of(context).pop(true); // Return success
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🍽️ Food item saved successfully!'),
-            backgroundColor: AppTheme.success,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        // Snackbar will be shown by parent screen (AI results/timeline)
       }
     } catch (e) {
       if (mounted) {

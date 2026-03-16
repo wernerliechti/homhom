@@ -885,18 +885,6 @@ class _GoalsStatsScreenState extends State<GoalsStatsScreen>
             content: Text('Goal period deleted: ${goalPeriod.dateRangeString}'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'Undo',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Undo not yet implemented'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
           ),
         );
       }

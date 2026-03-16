@@ -340,19 +340,32 @@ async function analyzeImageWithOpenAI(imageBase64, preferences) {
                     content: [
                         {
                             type: "text",
-                            text: `Analyze this meal image and provide detailed nutrition information as VALID JSON ONLY (no markdown, no code blocks, no explanations).
-
-Return a JSON object with:
-- foods: array of identified foods (strings)
-- calories: estimated total calories (number)
-- macros: { protein, carbs, fats } in grams (numbers)
-- vitamins: array of key vitamins (strings)
-- allergens: array of detected allergens (strings)
-- healthScore: 1-10 rating (number)
+                            text: `Analyze this meal image and identify all visible food items. For each food item, estimate the portion size and calculate detailed nutritional information.
 
 User preferences: ${JSON.stringify(preferences || {})}
 
-Response must be VALID JSON ONLY, starting with { and ending with }`,
+Please respond with ONLY valid JSON in this exact format (NO MARKDOWN, NO CODE BLOCKS):
+
+{
+  "foods": [
+    {
+      "name": "food name",
+      "description": "brief description of preparation/cooking method",
+      "estimatedWeight": 150.0,
+      "confidence": 0.85,
+      "portionMethod": "visual estimation method used",
+      "nutrition": {
+        "calories": 280.0,
+        "protein": 12.5,
+        "carbs": 35.0,
+        "fat": 8.2,
+        "fiber": 3.1,
+        "sugar": 2.0,
+        "sodium": 450.0
+      }
+    }
+  ]
+}`,
                         },
                         {
                             type: "image_url",

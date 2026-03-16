@@ -414,7 +414,7 @@ async function analyzeImageWithOpenAI(
             content: [
               {
                 type: "text",
-                text: `Analyze this meal image and identify all visible food items. For each food item, estimate the portion size and calculate detailed nutritional information.
+                text: `Analyze this meal image and identify all visible food items. For each food item, estimate the portion size and weight (WEIGHT OF FOOD ONLY, NOT INCLUDING PLATE OR BOWL) and calculate detailed nutritional information.
 
 User preferences: ${JSON.stringify(preferences || {})}
 
