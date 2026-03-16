@@ -321,9 +321,16 @@ class _AIResultsScreenState extends State<AIResultsScreen> {
       },
       onWeightChanged: _updateFoodItemWeight,
       onEditPressed: (food) {
-        setState(() {
-          _itemEditMode[food.id] = true;
-        });
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) => DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            maxChildSize: 0.95,
+            minChildSize: 0.5,
+            builder: (context, scrollController) => _buildFoodItemEditor(food),
+          ),
+        );
       },
     );
   }

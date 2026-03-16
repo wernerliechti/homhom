@@ -670,6 +670,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
       await provider.deleteMeal(meal.id);
 
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${_getMealTypeDisplay(meal.type)} deleted'),
