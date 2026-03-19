@@ -642,4 +642,48 @@ class DatabaseService {
       createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
+
+  /// Get all meals (for backup)
+  Future<List<Meal>> getAllMeals() async {
+    final db = await database;
+    final result = await db.query('meals', orderBy: 'timestamp DESC');
+    return result.map((map) => _mealFromMap(map)).toList();
+  }
+
+  /// Clear all data (for import - replace all)
+  Future<void> clearAllData() async {
+    final db = await database;
+    await db.delete('meals');
+    await db.delete('daily_summaries');
+    await db.delete('goal_periods');
+    print('🗑️  All data cleared');
+  }
+
+  /// Set current goal period (for import)
+  Future<void> setCurrentGoalPeriod(GoalPeriod goalPeriod) async {
+    final db = await database;
+    
+    // End any existing active goal period
+    final existing = await getCurrentGoalPeriod();
+    if (existing != null && existing.endDate == null) {
+      await db.update(
+        'goal_periods',
+        {'endDate': DateTime.now().toIso8601String()},
+        where: 'id = ?',
+        whereArgs: [existing.id],
+      );
+    }
+
+    // Insert new goal period
+    await db.insert(
+      'goal_periods',
+      _goalPeriodToMap(goalPeriod),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Add meal (for import)
+  Future<void> addMeal(Meal meal) async {
+    await insertMeal(meal);
+  }
 }

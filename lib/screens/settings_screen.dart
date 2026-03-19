@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import '../providers/nutrition_provider.dart';
-import '../providers/hom_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../theme/app_theme.dart';
-import '../widgets/hom_balance_indicator.dart';
-import '../screens/purchase_homs_screen.dart';
-import '../screens/api_config_screen.dart';
+import '../services/backup_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,55 +11,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _apiKeyController = TextEditingController();
+  final BackupService _backupService = BackupService();
   bool _isLoading = false;
-  bool _isTestingConnection = false;
-  bool _showApiKey = false;
-  bool _hasApiKey = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCurrentApiKey();
-  }
-
-  @override
-  void dispose() {
-    _apiKeyController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadCurrentApiKey() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final provider = context.read<NutritionProvider>();
-      final existingKey = await provider.getOpenAIKey();
-      
-      if (existingKey != null && existingKey.isNotEmpty) {
-        _apiKeyController.text = existingKey;
-        _hasApiKey = true;
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load API key: $e'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,471 +22,346 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: AppTheme.surface,
         elevation: 0,
       ),
-      body: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 24),
-                    _buildApiKeySection(),
-                    const SizedBox(height: 24),
-                    _buildInstructions(),
-                    const SizedBox(height: 24),
-                    _buildActionButtons(),
-                  ],
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withAlpha(20),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.psychology,
-              size: 40,
-              color: AppTheme.primary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'AI Configuration',
-            style: AppTheme.heading2,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _hasApiKey 
-                ? 'OpenAI API configured and ready'
-                : 'Setup OpenAI API for food recognition',
-            style: TextStyle(
-              fontSize: 14,
-              color: _hasApiKey ? AppTheme.success : AppTheme.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApiKeySection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.key, color: AppTheme.primary, size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'OpenAI API Key',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              if (_hasApiKey)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.success.withAlpha(20),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Configured',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.success,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _apiKeyController,
-            obscureText: !_showApiKey,
-            decoration: InputDecoration(
-              labelText: 'API Key',
-              hintText: 'sk-proj-...',
-              helperText: 'Required for AI food recognition and nutrition analysis',
-              prefixIcon: const Icon(Icons.vpn_key, size: 20),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      _showApiKey ? Icons.visibility_off : Icons.visibility,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _showApiKey = !_showApiKey;
-                      });
-                    },
-                    tooltip: _showApiKey ? 'Hide API key' : 'Show API key',
-                  ),
-                  if (_apiKeyController.text.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.copy, size: 20),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: _apiKeyController.text));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('API key copied to clipboard'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      tooltip: 'Copy API key',
-                    ),
-                ],
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your OpenAI API key';
-              }
-              if (!value.startsWith('sk-')) {
-                return 'OpenAI API keys typically start with "sk-"';
-              }
-              if (value.length < 20) {
-                return 'API key seems too short';
-              }
-              return null;
-            },
-            onChanged: (value) {
-              setState(() {
-                _hasApiKey = value.isNotEmpty;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isTestingConnection ? null : _testConnection,
-                  icon: _isTestingConnection 
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.network_check, size: 16),
-                  label: Text(_isTestingConnection ? 'Testing...' : 'Test Connection'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primary,
-                    side: const BorderSide(color: AppTheme.primary),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInstructions() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withAlpha(15),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.info_outline,
-                color: AppTheme.primary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'How to Get Your API Key',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primary,
-                ),
-              ),
-            ],
+          // Data & Backup Section
+          _buildSectionHeader('Data & Backup'),
+          const SizedBox(height: 12),
+          
+          // Export Button
+          _buildOptionCard(
+            icon: Icons.download,
+            title: 'Export Backup',
+            subtitle: 'Save all meals, goals, and photos',
+            onTap: _isLoading ? null : _handleExport,
+            loading: _isLoading,
           ),
           const SizedBox(height: 12),
-          ..._buildInstructionSteps(),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.warning.withAlpha(20),
-              borderRadius: BorderRadius.circular(8),
-            ),
+          
+          // Import Button
+          _buildOptionCard(
+            icon: Icons.upload,
+            title: 'Import Backup',
+            subtitle: 'Restore from backup file (replaces all data)',
+            onTap: _isLoading ? null : _handleImport,
+            loading: _isLoading,
+            isDanger: true,
+          ),
+          const SizedBox(height: 32),
+          
+          // About Section
+          _buildSectionHeader('About'),
+          const SizedBox(height: 12),
+          
+          _buildInfoCard(
+            'Version',
+            'HomHom v1.0.3',
+          ),
+          const SizedBox(height: 12),
+          
+          _buildInfoCard(
+            'Data Storage',
+            'All data stored locally on your device',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, top: 12),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback? onTap,
+    bool loading = false,
+    bool isDanger = false,
+  }) {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.security,
-                  color: AppTheme.warning,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Your API key is stored securely on your device and never shared with third parties.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                      height: 1.3,
-                    ),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: (isDanger ? AppTheme.error : AppTheme.primary)
+                        .withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isDanger ? AppTheme.error : AppTheme.primary,
+                    size: 24,
                   ),
                 ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (loading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: AppTheme.textTertiary,
+                  ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  List<Widget> _buildInstructionSteps() {
-    final steps = [
-      '1. Visit platform.openai.com/api-keys',
-      '2. Sign in to your OpenAI account',
-      '3. Click "Create new secret key"',
-      '4. Copy the generated key (starts with "sk-")',
-      '5. Paste it in the field above',
-    ];
-
-    return steps.map((step) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(
-          step,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppTheme.textSecondary,
-            height: 1.4,
-          ),
-        ),
-      );
-    }).toList();
-  }
-
-  Widget _buildActionButtons() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ElevatedButton.icon(
-          onPressed: _isLoading ? null : _saveApiKey,
-          icon: const Icon(Icons.save, size: 20),
-          label: const Text('Save Configuration'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-        if (_hasApiKey) ...[
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _clearApiKey,
-            icon: const Icon(Icons.delete_outline, size: 20),
-            label: const Text('Clear API Key'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.error,
-              side: const BorderSide(color: AppTheme.error),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Future<void> _testConnection() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isTestingConnection = true;
-    });
-
+  Future<void> _handleExport() async {
     try {
-      final provider = context.read<NutritionProvider>();
-      
-      // Temporarily set the API key for testing
-      await provider.setOpenAIKey(_apiKeyController.text.trim());
-      
-      // Test with a simple request
-      final isConfigured = await provider.isAIConfigured();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isConfigured 
-                  ? '✅ Connection successful! API key is valid.'
-                  : '❌ Connection failed. Please check your API key.',
-            ),
-            backgroundColor: isConfigured ? AppTheme.success : AppTheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        
-        if (isConfigured) {
-          HapticFeedback.mediumImpact();
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Connection test failed: ${e.toString()}'),
-            backgroundColor: AppTheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isTestingConnection = false;
-        });
-      }
-    }
-  }
+      setState(() => _isLoading = true);
 
-  Future<void> _saveApiKey() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final provider = context.read<NutritionProvider>();
-      await provider.setOpenAIKey(_apiKeyController.text.trim());
-      
+      // Show progress
       if (mounted) {
-        HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ API key saved successfully!'),
-            backgroundColor: AppTheme.success,
-            behavior: SnackBarBehavior.floating,
+            content: Text('📦 Creating backup...'),
+            duration: Duration(seconds: 2),
           ),
         );
-        
-        setState(() {
-          _hasApiKey = true;
-        });
+      }
+
+      // Export backup
+      final backupPath = await _backupService.exportBackup();
+
+      if (mounted) {
+        // Show success dialog
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Backup Created'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '✅ Your backup has been created successfully!',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Location:\n$backupPath',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'You can now:\n• Share via email, cloud storage, or messaging apps\n• Keep it safe for restoring on a new device',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save API key: $e'),
+            content: Text('❌ Backup failed: $e'),
             backgroundColor: AppTheme.error,
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  Future<void> _clearApiKey() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear API Key'),
-        content: const Text(
-          'Are you sure you want to remove your OpenAI API key? '
-          'This will disable AI food recognition until you add a new key.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _handleImport() async {
+    try {
+      // Pick file
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+        dialogTitle: 'Select backup file',
+      );
 
-    if (confirmed == true && mounted) {
-      setState(() {
-        _isLoading = true;
-      });
+      if (result == null || result.files.isEmpty) {
+        return; // User cancelled
+      }
 
-      try {
-        final provider = context.read<NutritionProvider>();
-        await provider.setOpenAIKey('');
-        _apiKeyController.clear();
-        
-        if (mounted) {
-          setState(() {
-            _hasApiKey = false;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('API key cleared'),
-              backgroundColor: AppTheme.secondary,
-              behavior: SnackBarBehavior.floating,
+      final backupPath = result.files.first.path;
+      if (backupPath == null) return;
+
+      if (mounted) {
+        // Show confirmation dialog
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('⚠️ Replace All Data'),
+            content: const Text(
+              'This will replace all your current meals and goals with the backup data. This action cannot be undone.\n\nAre you sure?',
             ),
-          );
-        }
-      } catch (e) {
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Import',
+                  style: TextStyle(color: AppTheme.error),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed != true) return;
+
+        // Show progress
+        setState(() => _isLoading = true);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📥 Restoring backup...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Import backup
+        final result = await _backupService.importBackup(backupPath);
+
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to clear API key: $e'),
-              backgroundColor: AppTheme.error,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          if (result.success) {
+            // Show success
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('✅ Backup Restored'),
+                content: Text(result.message),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            // Show error
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ ${result.message}'),
+                backgroundColor: AppTheme.error,
+              ),
+            );
+          }
         }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Import failed: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }

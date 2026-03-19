@@ -103,40 +103,64 @@ exports.validatePlayPurchase = functions.https.onCall(async (data, context) => {
 });
 /**
  * Helper function to process meal after user data is confirmed
+ * ✅ ONLY deducts HOMs if analysis succeeds AND returns food data (foods.length > 0)
  */
 async function processMealForUser(userId, imageBase64, userPreferences, userData) {
     // Check if user is unlimited or has HOMs
     if (!userData.isUnlimited && userData.balance <= 0) {
         throw new functions.https.HttpsError("permission-denied", "Insufficient HOMs. Please purchase more or add API key.");
     }
-    // Call OpenAI Vision API to analyze meal
+    // Call OpenAI Vision API to analyze meal (BEFORE deducting HOMs)
     const mealAnalysis = await analyzeImageWithOpenAI(imageBase64, userPreferences);
-    // Consume 1 HOM if user is metered
+    // ✅ Check if analysis returned food data
+    const foods = mealAnalysis.foods || [];
+    if (!Array.isArray(foods) || foods.length === 0) {
+        // No food detected - DON'T deduct HOMs!
+        console.log('❌ No food detected in analysis. NOT deducting HOMs.');
+        // Still log the failed analysis attempt
+        await db.collection("users").doc(userId).collection("meals").add({
+            ...mealAnalysis,
+            processedAt: admin.firestore.Timestamp.now(),
+            homsUsed: 0,
+            success: false,
+            reason: 'No food detected'
+        }).catch(err => console.warn('Failed to log meal:', err));
+        // Return current balance (NOT decremented)
+        return {
+            success: false,
+            analysis: mealAnalysis,
+            remainingHoms: userData.isUnlimited ? "unlimited" : (userData.balance || 10),
+            reason: 'No food detected'
+        };
+    }
+    // ✅ Food WAS detected! Now consume 1 HOM if user is metered
+    let remainingBalance = userData.balance || 10;
     if (!userData.isUnlimited) {
+        remainingBalance = remainingBalance - 1;
         await db.collection("users").doc(userId).update({
-            balance: admin.firestore.FieldValue.increment(-1),
+            balance: remainingBalance,
             updatedAt: admin.firestore.Timestamp.now(),
         });
-        // Log consumption
+        // Log HOM consumption
         await db.collection("users").doc(userId).collection("transactions").add({
             type: "consumption",
             homsConsumed: 1,
-            remainingBalance: (userData.balance || 10) - 1,
+            remainingBalance: remainingBalance,
             timestamp: admin.firestore.Timestamp.now(),
         });
+        console.log(`✅ HOMs deducted. Remaining: ${remainingBalance}`);
     }
     // Log successful processing
     await db.collection("users").doc(userId).collection("meals").add({
         ...mealAnalysis,
         processedAt: admin.firestore.Timestamp.now(),
         homsUsed: userData.isUnlimited ? 0 : 1,
+        success: true,
     });
     return {
         success: true,
         analysis: mealAnalysis,
-        remainingHoms: userData.isUnlimited
-            ? "unlimited"
-            : (userData.balance || 10) - 1,
+        remainingHoms: userData.isUnlimited ? "unlimited" : remainingBalance,
     };
 }
 /**
@@ -201,7 +225,7 @@ exports.processMealHttp = functions.https.onRequest(async (req, res) => {
         if (!userData) {
             // Create user document if doesn't exist
             await db.collection("users").doc(userId).set({
-                balance: 10, // 10 free HOMs for new users
+                balance: 50, // 50 free HOMs for new users
                 isUnlimited: false,
                 createdAt: admin.firestore.Timestamp.now(),
                 updatedAt: admin.firestore.Timestamp.now(),
@@ -286,7 +310,7 @@ exports.setApiKey = functions.https.onCall(async (data, context) => {
             // Remove API key, revert to metered mode
             await userRef.update({
                 isUnlimited: false,
-                balance: 10, // Reset with free HOMs
+                balance: 50, // Reset with free HOMs
                 updatedAt: admin.firestore.Timestamp.now(),
             });
             return { success: true, message: "API key removed. Switched to metered mode." };
@@ -340,7 +364,7 @@ async function analyzeImageWithOpenAI(imageBase64, preferences) {
                     content: [
                         {
                             type: "text",
-                            text: `Analyze this meal image and identify all visible food items. For each food item, estimate the portion size and calculate detailed nutritional information.
+                            text: `Analyze this meal image and identify all visible food items. For each food item, estimate the portion size and weight (WEIGHT OF FOOD ONLY, NOT INCLUDING PLATE OR BOWL) and calculate detailed nutritional information.
 
 User preferences: ${JSON.stringify(preferences || {})}
 
