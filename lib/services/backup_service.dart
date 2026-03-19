@@ -148,7 +148,7 @@ class BackupService {
       
       print('📦 ZIP file size: ${bytes.length} bytes');
       
-      late final List<ArchiveFile> archive;
+      late final Archive archive;
       try {
         archive = ZipDecoder().decodeBytes(bytes);
       } catch (e) {
