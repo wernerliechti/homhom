@@ -4,6 +4,7 @@ import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/meal.dart';
 import '../models/nutrition_goals.dart';
 import '../models/goal_period.dart';
@@ -238,12 +239,17 @@ class BackupService {
     return imagesDir;
   }
 
-  /// Save backup bytes to a file location
-  /// On desktop: uses file save dialog
-  /// On mobile: saves to app documents directory
+  /// Save backup bytes to a user-chosen location
+  /// On mobile: opens native share/file picker
+  /// On desktop: opens file save dialog
   Future<String?> saveBackupToUserLocation(List<int> zipBytes) async {
     try {
       final fileName = 'homhom_backup_${_getTimestamp()}.zip';
+      
+      // First, save to temp file
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/$fileName');
+      await tempFile.writeAsBytes(zipBytes);
       
       try {
         // Try desktop save dialog first
@@ -258,27 +264,39 @@ class BackupService {
           ],
         );
 
-        if (outputFile == null) {
-          return null; // User cancelled
+        if (outputFile != null) {
+          // User chose a location on desktop
+          final file = File(outputFile.path);
+          await file.writeAsBytes(zipBytes);
+          
+          // Clean up temp file
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+          
+          print('✅ Backup saved to: ${outputFile.path}');
+          return outputFile.path;
         }
-
-        // Write bytes to chosen location
-        final file = File(outputFile.path);
-        await file.writeAsBytes(zipBytes);
         
-        print('✅ Backup saved to: ${outputFile.path}');
-        return outputFile.path;
+        return null; // User cancelled
       } on UnimplementedError {
-        // Fallback for mobile: save to app documents directory
-        print('⚠️ Save dialog not available on this platform, saving to app directory');
+        // Mobile: Use share sheet to let user choose where to save
+        print('💾 Opening share dialog for mobile...');
         
-        final appDir = await getApplicationDocumentsDirectory();
-        final filePath = '${appDir.path}/$fileName';
-        final file = File(filePath);
-        await file.writeAsBytes(zipBytes);
+        final result = await Share.shareXFiles(
+          [XFile(tempFile.path, mimeType: 'application/zip')],
+          subject: 'HomHom Backup',
+          text: 'Here is your HomHom backup file. Save it somewhere safe!',
+        );
+
+        // Note: On mobile, we return the temp path
+        // The file will be copied by the share action to user's chosen location
+        if (result.status == ShareResultStatus.success) {
+          print('✅ Backup shared successfully');
+          return tempFile.path;
+        }
         
-        print('✅ Backup saved to: $filePath');
-        return filePath;
+        return null;
       }
     } catch (e) {
       print('❌ Failed to save backup: $e');
