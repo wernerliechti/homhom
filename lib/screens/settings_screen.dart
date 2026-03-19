@@ -270,7 +270,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _handleImport() async {
     try {
       // Pick ZIP file
-      final backupPath = await openFile(
+      final xFile = await openFile(
         acceptedTypeGroups: [
           XTypeGroup(
             label: 'ZIP files',
@@ -280,9 +280,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         dialogTitle: 'Select backup file',
       );
 
-      if (backupPath == null || backupPath.isEmpty) {
+      if (xFile == null) {
         return; // User cancelled
       }
+
+      final backupPath = xFile.path;
 
       if (mounted) {
         // Show confirmation dialog
