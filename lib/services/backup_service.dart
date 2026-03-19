@@ -4,7 +4,6 @@ import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:share_plus/share_plus.dart';
 import '../models/meal.dart';
 import '../models/nutrition_goals.dart';
 import '../models/goal_period.dart';
@@ -87,16 +86,34 @@ class BackupService {
       encoder.zipDirectory(backupDir, filename: tempZipPath);
       encoder.close();
 
+      // Wait a moment for file system to flush
+      await Future.delayed(const Duration(milliseconds: 100));
+
       // Read ZIP bytes
       final zipFile = File(tempZipPath);
+      if (!await zipFile.exists()) {
+        throw Exception('ZIP file was not created');
+      }
+      
       final zipBytes = await zipFile.readAsBytes();
       final zipSize = zipBytes.length;
       
-      print('✅ Backup prepared: (${(zipSize / 1024 / 1024).toStringAsFixed(2)} MB)');
+      if (zipBytes.isEmpty) {
+        throw Exception('ZIP file is empty');
+      }
+      
+      print('✅ Backup prepared: ${zipBytes.length} bytes (${(zipSize / 1024 / 1024).toStringAsFixed(2)} MB)');
 
       // Clean up temp files
       await backupDir.delete(recursive: true);
-      await zipFile.delete();
+      
+      try {
+        if (await zipFile.exists()) {
+          await zipFile.delete();
+        }
+      } catch (e) {
+        print('⚠️ Could not delete temp ZIP file: $e');
+      }
 
       return zipBytes;
     } catch (e) {
@@ -124,13 +141,35 @@ class BackupService {
       // Extract ZIP
       print('📂 Extracting backup...');
       final bytes = await zipFile.readAsBytes();
-      final archive = ZipDecoder().decodeBytes(bytes);
+      
+      if (bytes.isEmpty) {
+        throw Exception('Backup file is empty');
+      }
+      
+      print('📦 ZIP file size: ${bytes.length} bytes');
+      
+      late final List<ArchiveFile> archive;
+      try {
+        archive = ZipDecoder().decodeBytes(bytes);
+      } catch (e) {
+        print('❌ ZIP decode error: $e');
+        throw Exception('Invalid or corrupted backup file: $e');
+      }
+      
+      if (archive.isEmpty) {
+        throw Exception('Backup file is empty or corrupted');
+      }
+      
+      print('📂 Archive contains ${archive.length} items');
       
       for (final file in archive) {
         if (file.isFile) {
           final outputPath = '${extractDir.path}/${file.name}';
           await Directory(outputPath).parent.create(recursive: true);
-          await File(outputPath).writeAsBytes(file.content as List<int>);
+          final fileContent = file.content;
+          if (fileContent is List<int>) {
+            await File(outputPath).writeAsBytes(fileContent);
+          }
         }
       }
 
@@ -240,16 +279,11 @@ class BackupService {
   }
 
   /// Save backup bytes to a user-chosen location
-  /// On mobile: opens native share/file picker
+  /// On mobile: saves to Downloads/Documents folder
   /// On desktop: opens file save dialog
   Future<String?> saveBackupToUserLocation(List<int> zipBytes) async {
     try {
       final fileName = 'homhom_backup_${_getTimestamp()}.zip';
-      
-      // First, save to temp file
-      final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/$fileName');
-      await tempFile.writeAsBytes(zipBytes);
       
       try {
         // Try desktop save dialog first
@@ -268,35 +302,29 @@ class BackupService {
           // User chose a location on desktop
           final file = File(outputFile.path);
           await file.writeAsBytes(zipBytes);
-          
-          // Clean up temp file
-          if (await tempFile.exists()) {
-            await tempFile.delete();
-          }
-          
           print('✅ Backup saved to: ${outputFile.path}');
           return outputFile.path;
         }
         
         return null; // User cancelled
       } on UnimplementedError {
-        // Mobile: Use share sheet to let user choose where to save
-        print('💾 Opening share dialog for mobile...');
+        // Mobile: Save to app documents directory (accessible via Files app)
+        print('💾 Saving to device storage...');
         
-        final result = await Share.shareXFiles(
-          [XFile(tempFile.path, mimeType: 'application/zip')],
-          subject: 'HomHom Backup',
-          text: 'Here is your HomHom backup file. Save it somewhere safe!',
-        );
-
-        // Note: On mobile, we return the temp path
-        // The file will be copied by the share action to user's chosen location
-        if (result.status == ShareResultStatus.success) {
-          print('✅ Backup shared successfully');
-          return tempFile.path;
+        final appDir = await getApplicationDocumentsDirectory();
+        final backupDir = Directory('${appDir.path}/backups');
+        
+        // Create backups folder if it doesn't exist
+        if (!await backupDir.exists()) {
+          await backupDir.create(recursive: true);
         }
         
-        return null;
+        final filePath = '${backupDir.path}/$fileName';
+        final file = File(filePath);
+        await file.writeAsBytes(zipBytes);
+        
+        print('✅ Backup saved to device: $filePath');
+        return filePath;
       }
     } catch (e) {
       print('❌ Failed to save backup: $e');
