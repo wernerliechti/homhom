@@ -445,23 +445,23 @@ async function analyzeImageWithOpenAI(
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
-        model: "gpt-4-vision-preview",
+        model: "gpt-4o",
         messages: [
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Analyze this meal photo and identify all food items visible.
+                text: `You are a nutrition AI assistant. Analyze this meal photo and identify ALL visible food items.
 
-IMPORTANT: Respond ONLY with valid JSON (no markdown, no code blocks, no explanations).
+CRITICAL: Respond ONLY with valid JSON, no markdown, no explanations.
 
-If you can see food items:
+Format your response exactly like this:
 {
   "foods": [
     {
       "name": "food name",
-      "description": "brief description",
+      "description": "preparation method",
       "estimatedWeight": 150.0,
       "confidence": 0.85,
       "portionMethod": "visual estimation",
@@ -478,10 +478,8 @@ If you can see food items:
   ]
 }
 
-If no food detected (empty plate, no image, text only, etc):
-{
-  "foods": []
-}`,
+If you cannot see any food items in the image, return:
+{"foods": []}`,
               },
               {
                 type: "image_url",
@@ -492,7 +490,7 @@ If no food detected (empty plate, no image, text only, etc):
             ],
           },
         ],
-        max_tokens: 1024,
+        max_tokens: 2048,
       },
       {
         headers: {
@@ -503,20 +501,33 @@ If no food detected (empty plate, no image, text only, etc):
     );
 
     let content = response.data.choices[0].message.content;
-    console.log(`📄 OpenAI response: ${content.substring(0, 200)}...`);
+    console.log(`📄 OpenAI raw response (first 500 chars): ${content.substring(0, 500)}`);
     
-    // Strip markdown code blocks if present (e.g., ```json ... ```)
-    content = content.trim().replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+    // Strip markdown code blocks if present
+    content = content.trim()
+      .replace(/^```(json)?\n?/, '')
+      .replace(/\n?```$/, '')
+      .trim();
     
     try {
       const parsed = JSON.parse(content);
-      console.log(`✅ Parsed response: ${parsed.foods?.length || 0} food items`);
-      return parsed;
-    } catch (parseError) {
-      console.warn("Failed to parse JSON response:", parseError);
-      console.warn("Raw response:", content.substring(0, 500));
+      const foodCount = parsed.foods?.length || 0;
+      console.log(`✅ Successfully parsed OpenAI response: ${foodCount} food items detected`);
       
-      // If response is plain text (error message from OpenAI), return empty
+      // If we got a valid response with foods, use it
+      if (parsed.foods && Array.isArray(parsed.foods)) {
+        return parsed;
+      }
+      
+      // Valid JSON but invalid structure
+      console.warn("⚠️ Valid JSON but missing 'foods' array, returning empty");
+      return { foods: [] };
+    } catch (parseError) {
+      console.error("❌ Failed to parse OpenAI JSON response:", parseError);
+      console.error("Response content:", content);
+      console.error("First 200 chars:", content.substring(0, 200));
+      
+      // Return empty foods but DON'T throw - this prevents wasting HOMs on parse errors
       return { foods: [] };
     }
   } catch (error: any) {
