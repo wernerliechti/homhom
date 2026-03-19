@@ -63,7 +63,7 @@ dependencies:
   
   # Backup/Export (ZIP files)
   archive: ^3.4.5
-  file_picker: ^6.1.1
+  file_selector: ^0.9.2+3
   
   # Firebase
   firebase_core: ^2.24.2

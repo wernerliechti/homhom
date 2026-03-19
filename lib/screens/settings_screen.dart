@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import '../theme/app_theme.dart';
 import '../services/backup_service.dart';
 
@@ -269,19 +269,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _handleImport() async {
     try {
-      // Pick file
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['zip'],
+      // Pick ZIP file
+      final backupPath = await openFile(
+        acceptedTypeGroups: [
+          XTypeGroup(
+            label: 'ZIP files',
+            extensions: ['zip'],
+          ),
+        ],
         dialogTitle: 'Select backup file',
       );
 
-      if (result == null || result.files.isEmpty) {
+      if (backupPath == null || backupPath.isEmpty) {
         return; // User cancelled
       }
-
-      final backupPath = result.files.first.path;
-      if (backupPath == null) return;
 
       if (mounted) {
         // Show confirmation dialog

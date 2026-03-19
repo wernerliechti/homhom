@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:file_selector/file_selector.dart';
 import '../models/meal.dart';
 import '../models/nutrition_goals.dart';
 import '../models/goal_period.dart';
