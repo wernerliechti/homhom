@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_selector/file_selector.dart';
 import '../providers/hom_provider.dart';
 import '../theme/app_theme.dart';
 
 import '../screens/purchase_homs_screen.dart';
 import '../screens/api_config_screen.dart';
+import '../services/backup_service.dart';
 
 class NewSettingsScreen extends StatelessWidget {
   const NewSettingsScreen({super.key});
@@ -216,6 +218,29 @@ class NewSettingsScreen extends StatelessWidget {
             );
           },
         ),
+
+        const SizedBox(height: 12),
+
+        // Data & Backup - Export
+        _buildSettingsTile(
+          icon: Icons.download,
+          title: 'Export Backup',
+          subtitle: 'Save all meals, goals, and photos',
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _handleExport(context),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Data & Backup - Import
+        _buildSettingsTile(
+          icon: Icons.upload,
+          title: 'Import Backup',
+          subtitle: 'Restore from backup file (replaces all)',
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _handleImport(context),
+          isDanger: true,
+        ),
       ],
     );
   }
@@ -226,7 +251,10 @@ class NewSettingsScreen extends StatelessWidget {
     required String subtitle,
     required Widget trailing,
     required VoidCallback onTap,
+    bool isDanger = false,
   }) {
+    final color = isDanger ? AppTheme.error : AppTheme.primary;
+    
     return Container(
       decoration: AppTheme.cardDecoration,
       child: ListTile(
@@ -234,10 +262,10 @@ class NewSettingsScreen extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.primary.withAlpha(20),
+            color: color.withAlpha(20),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, size: 20, color: AppTheme.primary),
+          child: Icon(icon, size: 20, color: color),
         ),
         title: Text(
           title,
@@ -300,5 +328,162 @@ class NewSettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _handleExport(BuildContext context) async {
+    final backupService = BackupService();
+    
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📦 Creating backup...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final backupPath = await backupService.exportBackup();
+
+      if (context.mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Backup Created'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '✅ Your backup has been created successfully!',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Location:\n$backupPath',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'You can now:\n• Share via email, cloud storage, or messaging apps\n• Keep it safe for restoring on a new device',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Backup failed: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleImport(BuildContext context) async {
+    final backupService = BackupService();
+    
+    try {
+      final xFile = await openFile(
+        acceptedTypeGroups: [
+          XTypeGroup(
+            label: 'ZIP files',
+            mimeTypes: ['application/zip'],
+            extensions: ['zip'],
+          ),
+        ],
+      );
+
+      if (xFile == null) {
+        return;
+      }
+
+      final backupPath = xFile.path;
+
+      if (context.mounted) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('⚠️ Replace All Data'),
+            content: const Text(
+              'This will replace all your current meals and goals with the backup data. This action cannot be undone.\n\nAre you sure?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Import',
+                  style: TextStyle(color: AppTheme.error),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed != true) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📥 Restoring backup...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        final result = await backupService.importBackup(backupPath);
+
+        if (context.mounted) {
+          if (result.success) {
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('✅ Backup Restored'),
+                content: Text(result.message),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ ${result.message}'),
+                backgroundColor: AppTheme.error,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Import failed: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 }
