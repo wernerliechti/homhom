@@ -133,9 +133,9 @@ class HomProvider with ChangeNotifier {
     return await _homService.checkRateLimit();
   }
 
-  /// Record an analysis attempt (both successful and failed count towards limit)
-  Future<void> recordAnalysisRequest() async {
-    await _homService.recordAnalysisRequest();
+  /// Record a successful analysis (only on success, counts towards rate limit and HOM deduction)
+  Future<void> recordSuccessfulAnalysis() async {
+    await _homService.recordSuccessfulAnalysis();
   }
 
   /// Clear any error messages

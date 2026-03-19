@@ -49,9 +49,6 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
       final provider = context.read<NutritionProvider>();
       final homProvider = context.read<HomProvider>();
       
-      // Record this analysis request (counts towards rate limit, regardless of success/failure)
-      await homProvider.recordAnalysisRequest();
-      
       // Try to analyze meal with fallback mechanism:
       // 1. First try local OpenAI key if configured
       // 2. Fall back to Firebase Cloud Function (uses server-side key)
@@ -267,15 +264,30 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
             _isLoading = false;
           });
         } else {
-          // SUCCESS! Now consume the HOM
+          // SUCCESS! Now consume the HOM and record the successful request
           final homProvider = context.read<HomProvider>();
+          
+          // Consume the HOM first
           final homConsumed = await homProvider.consumeHomForScan();
           
           if (!homConsumed) {
             print('⚠️ Warning: Analysis succeeded but HOM consumption failed');
-          } else {
-            print('✅ HOM consumed for successful analysis');
+            // Don't proceed if HOM wasn't consumed
+            if (mounted) {
+              setState(() {
+                _errorType = 'other';
+                _errorMessage = 'Failed to process HOM deduction';
+                _fullErrorDetails = 'Analysis succeeded but could not deduct HOM from balance';
+                _isLoading = false;
+              });
+            }
+            return;
           }
+          
+          print('✅ HOM consumed for successful analysis');
+          
+          // ONLY after HOM is consumed, record this towards the rate limit
+          await homProvider.recordSuccessfulAnalysis();
           
           setState(() {
             _analysisResults = foodItems;

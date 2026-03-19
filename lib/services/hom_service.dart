@@ -379,8 +379,9 @@ class HomService {
     }
   }
 
-  /// Record a new analysis request (both failed and successful)
-  Future<void> recordAnalysisRequest() async {
+  /// Record a successful analysis request (only on success - consumes HOM)
+  /// This counts towards both rate limit and HOM deduction
+  Future<void> recordSuccessfulAnalysis() async {
     try {
       final timestampsStr = await _storage.read(key: _rateLimitKey);
       List<int> timestamps = [];
@@ -406,9 +407,9 @@ class HomService {
         value: timestamps.join(','),
       );
       
-      print('📝 Recorded analysis request. Total in last hour: ${timestamps.length}/$_maxRequestsPerHour');
+      print('✅ Recorded SUCCESSFUL analysis. Total in last hour: ${timestamps.length}/$_maxRequestsPerHour');
     } catch (e) {
-      print('⚠️ Error recording analysis request: $e');
+      print('⚠️ Error recording successful analysis: $e');
     }
   }
 
