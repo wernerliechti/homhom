@@ -238,34 +238,48 @@ class BackupService {
     return imagesDir;
   }
 
-  /// Save backup bytes to a file location chosen by user
-  /// Uses file_selector to let user choose save location
+  /// Save backup bytes to a file location
+  /// On desktop: uses file save dialog
+  /// On mobile: saves to app documents directory
   Future<String?> saveBackupToUserLocation(List<int> zipBytes) async {
     try {
       final fileName = 'homhom_backup_${_getTimestamp()}.zip';
       
-      // Let user choose where to save
-      final outputFile = await getSaveLocation(
-        suggestedName: fileName,
-        acceptedTypeGroups: [
-          XTypeGroup(
-            label: 'ZIP files',
-            mimeTypes: ['application/zip'],
-            extensions: ['zip'],
-          ),
-        ],
-      );
+      try {
+        // Try desktop save dialog first
+        final outputFile = await getSaveLocation(
+          suggestedName: fileName,
+          acceptedTypeGroups: [
+            XTypeGroup(
+              label: 'ZIP files',
+              mimeTypes: ['application/zip'],
+              extensions: ['zip'],
+            ),
+          ],
+        );
 
-      if (outputFile == null) {
-        return null; // User cancelled
+        if (outputFile == null) {
+          return null; // User cancelled
+        }
+
+        // Write bytes to chosen location
+        final file = File(outputFile.path);
+        await file.writeAsBytes(zipBytes);
+        
+        print('✅ Backup saved to: ${outputFile.path}');
+        return outputFile.path;
+      } on UnimplementedError {
+        // Fallback for mobile: save to app documents directory
+        print('⚠️ Save dialog not available on this platform, saving to app directory');
+        
+        final appDir = await getApplicationDocumentsDirectory();
+        final filePath = '${appDir.path}/$fileName';
+        final file = File(filePath);
+        await file.writeAsBytes(zipBytes);
+        
+        print('✅ Backup saved to: $filePath');
+        return filePath;
       }
-
-      // Write bytes to chosen location
-      final file = File(outputFile.path);
-      await file.writeAsBytes(zipBytes);
-      
-      print('✅ Backup saved to: ${outputFile.path}');
-      return outputFile.path;
     } catch (e) {
       print('❌ Failed to save backup: $e');
       rethrow;
