@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import 'timeline_screen.dart';
 import 'goals_stats_screen.dart';
+import 'settings_screen.dart';
 import 'meal_metadata_screen.dart';
 import 'manual_entry_screen.dart';
 
@@ -25,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _screens = [
       TimelineScreen(onNavigateToAddMeal: _navigateToAddMeal),
       const GoalsStatsScreen(),
+      const SettingsScreen(),
     ];
   }
 
@@ -74,14 +76,25 @@ class _HomeScreenState extends State<HomeScreen> {
           // Spacer for center button
           const SizedBox(width: 80),
           
-          // Goals & Stats button (right)
+          // Goals & Stats button (middle-right)
           Expanded(
             child: _buildNavButton(
               icon: Icons.flag_outlined,
               activeIcon: Icons.flag,
-              label: 'Goals & Stats',
+              label: 'Goals',
               isActive: _currentIndex == 1,
               onTap: () => _setIndex(1),
+            ),
+          ),
+          
+          // Settings button (right)
+          Expanded(
+            child: _buildNavButton(
+              icon: Icons.settings_outlined,
+              activeIcon: Icons.settings,
+              label: 'Settings',
+              isActive: _currentIndex == 2,
+              onTap: () => _setIndex(2),
             ),
           ),
         ],
