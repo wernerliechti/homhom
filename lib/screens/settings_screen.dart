@@ -274,6 +274,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         acceptedTypeGroups: [
           XTypeGroup(
             label: 'ZIP files',
+            mimeTypes: ['application/zip'],
             extensions: ['zip'],
           ),
         ],
