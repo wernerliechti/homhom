@@ -6,6 +6,7 @@ import '../providers/nutrition_provider.dart';
 import '../providers/hom_provider.dart';
 import '../theme/app_theme.dart';
 import 'ai_analysis_flow.dart';
+import 'purchase_homs_screen.dart';
 
 class MealMetadataScreen extends StatefulWidget {
   final String imagePath;
@@ -500,15 +501,42 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
         dishWeight = double.tryParse(_weightController.text);
       }
 
-      // Consume HOM before AI analysis
       final homProvider = context.read<HomProvider>();
-      final homConsumed = await homProvider.consumeHomForScan();
-      
-      if (!homConsumed) {
+
+      // Check if user has enough HOMs BEFORE sending to AI
+      if (!homProvider.canScan) {
         if (mounted) {
+          // Show "Buy more HOMs" screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No HOMs remaining. Buy more to continue.'),
+              backgroundColor: AppTheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          
+          // Navigate to purchase screen
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const PurchaseHomsScreen(),
+              ),
+            );
+          }
+        }
+        return;
+      }
+
+      // Check rate limit (10 requests per hour)
+      final rateLimitResult = await homProvider.checkRateLimit();
+      if (!rateLimitResult.canMakeRequest) {
+        if (mounted) {
+          final minutesRemaining = rateLimitResult.timeUntilReset.inMinutes;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(homProvider.lastError ?? 'Unable to consume HOM'),
+              content: Text(
+                'Rate limit: 10 analyses per hour. Try again in $minutesRemaining minutes.',
+              ),
               backgroundColor: AppTheme.error,
               behavior: SnackBarBehavior.floating,
             ),
@@ -517,7 +545,7 @@ class _MealMetadataScreenState extends State<MealMetadataScreen> {
         return;
       }
 
-      // Navigate to AI analysis flow
+      // Navigate to AI analysis flow (HOM will be consumed ONLY on success)
       if (mounted) {
         final result = await Navigator.of(context).push<bool>(
           MaterialPageRoute(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -33,6 +34,9 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
   bool _isLoading = true;
   List<FoodItem>? _analysisResults;
   String? _errorMessage;
+  String? _fullErrorDetails; // For debug mode
+  int _errorIconTapCount = 0; // To track debug trigger
+  String? _errorType; // 'no_food', 'ai_unavailable', 'other'
 
   @override
   void initState() {
@@ -43,6 +47,10 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
   Future<void> _startAnalysis() async {
     try {
       final provider = context.read<NutritionProvider>();
+      final homProvider = context.read<HomProvider>();
+      
+      // Record this analysis request (counts towards rate limit, regardless of success/failure)
+      await homProvider.recordAnalysisRequest();
       
       // Try to analyze meal with fallback mechanism:
       // 1. First try local OpenAI key if configured
@@ -226,8 +234,23 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
           print('❌ Firebase analysis failed: $firebaseError');
           // Both methods failed, will handle error below
           if (mounted) {
+            final errorStr = firebaseError.toString();
             setState(() {
-              _errorMessage = 'Analysis failed: ${_getReadableError(firebaseError.toString())}';
+              _fullErrorDetails = errorStr;
+              
+              // Categorize the error
+              if (errorStr.contains('Unable to identify') || errorStr.contains('failed to analyze')) {
+                _errorType = 'no_food';
+                _errorMessage = 'No food detected';
+              } else if (errorStr.contains('unavailable') || errorStr.contains('offline') || 
+                         errorStr.contains('connection') || errorStr.contains('timeout')) {
+                _errorType = 'ai_unavailable';
+                _errorMessage = 'AI analysis not available';
+              } else {
+                _errorType = 'other';
+                _errorMessage = 'Analysis failed';
+              }
+              
               _isLoading = false;
             });
           }
@@ -238,10 +261,22 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
       if (mounted) {
         if (foodItems == null || foodItems.isEmpty) {
           setState(() {
-            _errorMessage = 'Could not identify any food in the image. Try taking a clearer photo.';
+            _errorType = 'no_food';
+            _errorMessage = 'No food detected';
+            _fullErrorDetails = 'Could not identify any food in the image. Try taking a clearer photo.';
             _isLoading = false;
           });
         } else {
+          // SUCCESS! Now consume the HOM
+          final homProvider = context.read<HomProvider>();
+          final homConsumed = await homProvider.consumeHomForScan();
+          
+          if (!homConsumed) {
+            print('⚠️ Warning: Analysis succeeded but HOM consumption failed');
+          } else {
+            print('✅ HOM consumed for successful analysis');
+          }
+          
           setState(() {
             _analysisResults = foodItems;
             _isLoading = false;
@@ -250,8 +285,23 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
       }
     } catch (e) {
       if (mounted) {
+        final errorStr = e.toString();
         setState(() {
-          _errorMessage = 'Analysis failed: ${_getReadableError(e.toString())}';
+          _fullErrorDetails = errorStr;
+          
+          // Categorize the error
+          if (errorStr.contains('Unable to identify') || errorStr.contains('failed to analyze')) {
+            _errorType = 'no_food';
+            _errorMessage = 'No food detected';
+          } else if (errorStr.contains('unavailable') || errorStr.contains('offline') || 
+                     errorStr.contains('connection') || errorStr.contains('timeout')) {
+            _errorType = 'ai_unavailable';
+            _errorMessage = 'AI analysis not available';
+          } else {
+            _errorType = 'other';
+            _errorMessage = 'Something went wrong';
+          }
+          
           _isLoading = false;
         });
       }
@@ -411,6 +461,30 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
   }
 
   Widget _buildErrorScreen() {
+    String title;
+    String description;
+    IconData icon;
+    
+    // Determine error type and messages
+    switch (_errorType) {
+      case 'no_food':
+        title = 'No Food Detected';
+        description = 'The photo wasn\'t clear enough, or we couldn\'t identify any food. Try:\n\n• Take a clearer, well-lit photo\n• Include more of the meal\n• Make sure the food is in focus';
+        icon = Icons.image_not_supported_outlined;
+        break;
+        
+      case 'ai_unavailable':
+        title = 'AI Service Unavailable';
+        description = 'The AI analysis service is temporarily unavailable. This could be due to:\n\n• Network connection issues\n• Service is temporarily down\n\nPlease try again in a moment.';
+        icon = Icons.cloud_off_outlined;
+        break;
+        
+      default:
+        title = 'Oops, Something Went Wrong';
+        description = 'We encountered an error while analyzing your meal. Please try again or contact us if the problem persists.';
+        icon = Icons.warning_amber_rounded;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analysis Failed'),
@@ -418,27 +492,43 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
         elevation: 0,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppTheme.error.withAlpha(20),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline,
-                size: 60,
-                color: AppTheme.error,
+            // Error icon (tappable for debug)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _errorIconTapCount++;
+                });
+                
+                // Show debug popup after 10 taps
+                if (_errorIconTapCount >= 10 && _fullErrorDetails != null) {
+                  _showDebugDialog();
+                  _errorIconTapCount = 0; // Reset counter
+                }
+              },
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withAlpha(20),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 60,
+                  color: AppTheme.error,
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Analysis Failed',
-              style: TextStyle(
+            
+            // Title
+            Text(
+              title,
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
@@ -446,16 +536,18 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
+            
+            // Description
             Text(
-              _errorMessage ?? 'Unknown error occurred',
+              description,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 color: AppTheme.textSecondary,
-                height: 1.4,
+                height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
             
             // Action buttons
             Column(
@@ -490,6 +582,84 @@ class _AIAnalysisFlowState extends State<AIAnalysisFlow> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showDebugDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.bug_report, color: AppTheme.error, size: 24),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Debug Information',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    _fullErrorDetails ?? 'No error details available',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                      fontFamily: 'monospace',
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      // Copy to clipboard
+                      Clipboard.setData(
+                        ClipboardData(text: _fullErrorDetails ?? ''),
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Copied to clipboard'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    child: const Text('Copy'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
