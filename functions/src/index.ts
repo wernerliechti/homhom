@@ -106,6 +106,7 @@ export const validatePlayPurchase = functions.https.onCall(
 
 /**
  * Helper function to process meal after user data is confirmed
+ * ✅ ONLY deducts HOMs if analysis succeeds AND returns food data (foods.length > 0)
  */
 async function processMealForUser(
   userId: string,
@@ -121,23 +122,53 @@ async function processMealForUser(
     );
   }
 
-  // Call OpenAI Vision API to analyze meal
+  // Call OpenAI Vision API to analyze meal (BEFORE deducting HOMs)
   const mealAnalysis = await analyzeImageWithOpenAI(imageBase64, userPreferences);
 
-  // Consume 1 HOM if user is metered
+  // ✅ Check if analysis returned food data
+  const foods = mealAnalysis.foods || [];
+  if (!Array.isArray(foods) || foods.length === 0) {
+    // No food detected - DON'T deduct HOMs!
+    console.log('❌ No food detected in analysis. NOT deducting HOMs.');
+    
+    // Still log the failed analysis attempt
+    await db.collection("users").doc(userId).collection("meals").add({
+      ...mealAnalysis,
+      processedAt: admin.firestore.Timestamp.now(),
+      homsUsed: 0,
+      success: false,
+      reason: 'No food detected'
+    }).catch(err => console.warn('Failed to log meal:', err));
+
+    // Return current balance (NOT decremented)
+    return {
+      success: false,
+      analysis: mealAnalysis,
+      remainingHoms: userData.isUnlimited ? "unlimited" : (userData.balance || 10),
+      reason: 'No food detected'
+    };
+  }
+
+  // ✅ Food WAS detected! Now consume 1 HOM if user is metered
+  let remainingBalance = userData.balance || 10;
+  
   if (!userData.isUnlimited) {
+    remainingBalance = remainingBalance - 1;
+    
     await db.collection("users").doc(userId).update({
-      balance: admin.firestore.FieldValue.increment(-1),
+      balance: remainingBalance,
       updatedAt: admin.firestore.Timestamp.now(),
     });
 
-    // Log consumption
+    // Log HOM consumption
     await db.collection("users").doc(userId).collection("transactions").add({
       type: "consumption",
       homsConsumed: 1,
-      remainingBalance: (userData.balance || 10) - 1,
+      remainingBalance: remainingBalance,
       timestamp: admin.firestore.Timestamp.now(),
     });
+    
+    console.log(`✅ HOMs deducted. Remaining: ${remainingBalance}`);
   }
 
   // Log successful processing
@@ -145,14 +176,13 @@ async function processMealForUser(
     ...mealAnalysis,
     processedAt: admin.firestore.Timestamp.now(),
     homsUsed: userData.isUnlimited ? 0 : 1,
+    success: true,
   });
 
   return {
     success: true,
     analysis: mealAnalysis,
-    remainingHoms: userData.isUnlimited
-      ? "unlimited"
-      : (userData.balance || 10) - 1,
+    remainingHoms: userData.isUnlimited ? "unlimited" : remainingBalance,
   };
 }
 
