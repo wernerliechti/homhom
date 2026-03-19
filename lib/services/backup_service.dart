@@ -4,6 +4,7 @@ import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/meal.dart';
 import '../models/nutrition_goals.dart';
 import '../models/goal_period.dart';
@@ -279,7 +280,7 @@ class BackupService {
   }
 
   /// Save backup bytes to a user-chosen location
-  /// On mobile: saves to Downloads/Documents folder
+  /// On mobile: uses share sheet (user chooses Photos, Files, iCloud, etc.)
   /// On desktop: opens file save dialog
   Future<String?> saveBackupToUserLocation(List<int> zipBytes) async {
     try {
@@ -308,23 +309,32 @@ class BackupService {
         
         return null; // User cancelled
       } on UnimplementedError {
-        // Mobile: Save to app documents directory (accessible via Files app)
-        print('💾 Saving to device storage...');
+        // Mobile: Save temp file and open share sheet
+        print('💾 Opening share dialog...');
         
-        final appDir = await getApplicationDocumentsDirectory();
-        final backupDir = Directory('${appDir.path}/backups');
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/$fileName');
+        await tempFile.writeAsBytes(zipBytes);
         
-        // Create backups folder if it doesn't exist
-        if (!await backupDir.exists()) {
-          await backupDir.create(recursive: true);
+        // Show share sheet - user can save to Files, iCloud, Email, etc.
+        final result = await Share.shareXFiles(
+          [XFile(tempFile.path, mimeType: 'application/zip')],
+          subject: 'HomHom Backup',
+          text: 'Save this backup file to restore your meals and goals later.',
+        );
+
+        if (result.status == ShareResultStatus.success) {
+          print('✅ Backup shared successfully');
+          // Return temp path (file will be copied by share action)
+          return tempFile.path;
         }
         
-        final filePath = '${backupDir.path}/$fileName';
-        final file = File(filePath);
-        await file.writeAsBytes(zipBytes);
+        // Clean up if user cancelled
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
         
-        print('✅ Backup saved to device: $filePath');
-        return filePath;
+        return null;
       }
     } catch (e) {
       print('❌ Failed to save backup: $e');
