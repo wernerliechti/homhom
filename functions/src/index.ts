@@ -434,30 +434,37 @@ async function analyzeImageWithOpenAI(
       throw new Error("OpenAI API key not configured");
     }
 
+    // Validate base64 image
+    if (!imageBase64 || imageBase64.length < 100) {
+      console.warn("⚠️ Image data appears to be too small or empty");
+      return { foods: [] };
+    }
+
+    console.log(`📸 Sending image to OpenAI (${(imageBase64.length / 1024).toFixed(1)}KB)`);
+
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
-        model: "gpt-4o",
+        model: "gpt-4-vision-preview",
         messages: [
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Analyze this meal image and identify all visible food items. For each food item, estimate the portion size and weight (WEIGHT OF FOOD ONLY, NOT INCLUDING PLATE OR BOWL) and calculate detailed nutritional information.
+                text: `Analyze this meal photo and identify all food items visible.
 
-User preferences: ${JSON.stringify(preferences || {})}
+IMPORTANT: Respond ONLY with valid JSON (no markdown, no code blocks, no explanations).
 
-Please respond with ONLY valid JSON in this exact format (NO MARKDOWN, NO CODE BLOCKS):
-
+If you can see food items:
 {
   "foods": [
     {
       "name": "food name",
-      "description": "brief description of preparation/cooking method",
+      "description": "brief description",
       "estimatedWeight": 150.0,
       "confidence": 0.85,
-      "portionMethod": "visual estimation method used",
+      "portionMethod": "visual estimation",
       "nutrition": {
         "calories": 280.0,
         "protein": 12.5,
@@ -469,6 +476,11 @@ Please respond with ONLY valid JSON in this exact format (NO MARKDOWN, NO CODE B
       }
     }
   ]
+}
+
+If no food detected (empty plate, no image, text only, etc):
+{
+  "foods": []
 }`,
               },
               {
@@ -491,22 +503,29 @@ Please respond with ONLY valid JSON in this exact format (NO MARKDOWN, NO CODE B
     );
 
     let content = response.data.choices[0].message.content;
+    console.log(`📄 OpenAI response: ${content.substring(0, 200)}...`);
     
     // Strip markdown code blocks if present (e.g., ```json ... ```)
-    content = content.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+    content = content.trim().replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
     
     try {
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+      console.log(`✅ Parsed response: ${parsed.foods?.length || 0} food items`);
+      return parsed;
     } catch (parseError) {
-      console.warn("Failed to parse JSON response, returning as rawAnalysis:", parseError);
-      return { rawAnalysis: content };
+      console.warn("Failed to parse JSON response:", parseError);
+      console.warn("Raw response:", content.substring(0, 500));
+      
+      // If response is plain text (error message from OpenAI), return empty
+      return { foods: [] };
     }
   } catch (error: any) {
-    console.error("OpenAI analysis error:", error.response?.data || error);
-    throw new functions.https.HttpsError(
-      "internal",
-      "Failed to analyze meal image"
-    );
+    console.error("OpenAI API error:", error.response?.status, error.response?.data || error.message);
+    
+    // Don't throw - return empty food list instead
+    // This prevents wasting HOMs on API errors
+    console.warn("⚠️ OpenAI failed, returning empty analysis (no HOMs deducted)");
+    return { foods: [] };
   }
 }
 
