@@ -278,7 +278,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             extensions: ['zip'],
           ),
         ],
-        dialogTitle: 'Select backup file',
       );
 
       if (xFile == null) {
