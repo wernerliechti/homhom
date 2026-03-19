@@ -84,8 +84,8 @@ class BackupService {
       final zipFile = File(zipPath);
 
       final encoder = ZipFileEncoder();
-      await encoder.zipDirectory(backupDir, filename: zipPath);
-      await encoder.close();
+      encoder.zipDirectory(backupDir, filename: zipPath);
+      encoder.close();
 
       // Clean up temp directory
       await backupDir.delete(recursive: true);
