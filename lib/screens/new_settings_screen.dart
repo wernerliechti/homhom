@@ -341,47 +341,53 @@ class NewSettingsScreen extends StatelessWidget {
         ),
       );
 
-      final backupPath = await backupService.exportBackup();
+      // Create backup bytes
+      final zipBytes = await backupService.exportBackupBytes();
 
       if (context.mounted) {
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Backup Created'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    '✅ Your backup has been created successfully!',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Location:\n$backupPath',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                      color: AppTheme.textSecondary,
+        // Let user choose where to save
+        final savedPath = await backupService.saveBackupToUserLocation(zipBytes);
+
+        if (savedPath != null && context.mounted) {
+          await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('✅ Backup Saved'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Your backup has been saved successfully!',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'You can now:\n• Share via email, cloud storage, or messaging apps\n• Keep it safe for restoring on a new device',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(
+                      'Location:\n$savedPath',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'You can now:\n• Share via email, cloud storage, or messaging apps\n• Keep it safe for restoring on a new device',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {

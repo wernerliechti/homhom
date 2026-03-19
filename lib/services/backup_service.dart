@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:file_selector/file_selector.dart';
 import '../models/meal.dart';
 import '../models/nutrition_goals.dart';
 import '../models/goal_period.dart';
@@ -13,9 +14,9 @@ class BackupService {
   
   final DatabaseService _database = DatabaseService();
 
-  /// Export all data (meals, goals, images) to ZIP file
-  /// Returns path to created backup file
-  Future<String> exportBackup() async {
+  /// Export all data (meals, goals, images) to ZIP bytes
+  /// User can then choose where to save it
+  Future<List<int>> exportBackupBytes() async {
     try {
       final tempDir = await getTemporaryDirectory();
       final backupDir = Directory('${tempDir.path}/homhom_backup');
@@ -79,21 +80,24 @@ class BackupService {
 
       print('📦 Prepared backup: $imageCount images, ${meals.length} meals, ${goalHistory.length} goal periods');
 
-      // Create ZIP file
-      final zipPath = '${(await getApplicationDocumentsDirectory()).path}/homhom_backup_${_getTimestamp()}.zip';
-      final zipFile = File(zipPath);
-
+      // Create ZIP file and get bytes
+      final tempZipPath = '${tempDir.path}/homhom_backup_temp.zip';
       final encoder = ZipFileEncoder();
-      encoder.zipDirectory(backupDir, filename: zipPath);
+      encoder.zipDirectory(backupDir, filename: tempZipPath);
       encoder.close();
 
-      // Clean up temp directory
+      // Read ZIP bytes
+      final zipFile = File(tempZipPath);
+      final zipBytes = await zipFile.readAsBytes();
+      final zipSize = zipBytes.length;
+      
+      print('✅ Backup prepared: (${(zipSize / 1024 / 1024).toStringAsFixed(2)} MB)');
+
+      // Clean up temp files
       await backupDir.delete(recursive: true);
+      await zipFile.delete();
 
-      final zipSize = await zipFile.length();
-      print('✅ Backup created: $zipPath (${(zipSize / 1024 / 1024).toStringAsFixed(2)} MB)');
-
-      return zipPath;
+      return zipBytes;
     } catch (e) {
       print('❌ Backup export failed: $e');
       rethrow;
@@ -232,6 +236,40 @@ class BackupService {
       await imagesDir.create(recursive: true);
     }
     return imagesDir;
+  }
+
+  /// Save backup bytes to a file location chosen by user
+  /// Uses file_selector to let user choose save location
+  Future<String?> saveBackupToUserLocation(List<int> zipBytes) async {
+    try {
+      final fileName = 'homhom_backup_${_getTimestamp()}.zip';
+      
+      // Let user choose where to save
+      final outputFile = await getSaveLocation(
+        suggestedName: fileName,
+        acceptedTypeGroups: [
+          XTypeGroup(
+            label: 'ZIP files',
+            mimeTypes: ['application/zip'],
+            extensions: ['zip'],
+          ),
+        ],
+      );
+
+      if (outputFile == null) {
+        return null; // User cancelled
+      }
+
+      // Write bytes to chosen location
+      final file = File(outputFile.path);
+      await file.writeAsBytes(zipBytes);
+      
+      print('✅ Backup saved to: ${outputFile.path}');
+      return outputFile.path;
+    } catch (e) {
+      print('❌ Failed to save backup: $e');
+      rethrow;
+    }
   }
 
   /// Generate timestamp for backup filename
