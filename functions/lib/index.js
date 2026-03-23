@@ -201,7 +201,7 @@ exports.processMealHttp = functions.https.onRequest(async (req, res) => {
         if (!userData) {
             // Create user document if doesn't exist
             await db.collection("users").doc(userId).set({
-                balance: 10, // 10 free HOMs for new users
+                balance: 50, // 50 free HOMs for new users
                 isUnlimited: false,
                 createdAt: admin.firestore.Timestamp.now(),
                 updatedAt: admin.firestore.Timestamp.now(),
@@ -286,7 +286,7 @@ exports.setApiKey = functions.https.onCall(async (data, context) => {
             // Remove API key, revert to metered mode
             await userRef.update({
                 isUnlimited: false,
-                balance: 10, // Reset with free HOMs
+                balance: 50, // Reset with free HOMs
                 updatedAt: admin.firestore.Timestamp.now(),
             });
             return { success: true, message: "API key removed. Switched to metered mode." };
@@ -340,7 +340,7 @@ async function analyzeImageWithOpenAI(imageBase64, preferences) {
                     content: [
                         {
                             type: "text",
-                            text: `Analyze this meal image and identify all visible food items. For each food item, estimate the portion size and calculate detailed nutritional information.
+                            text: `Analyze this meal image and identify all visible food items. For each food item, estimate the portion size and weight (WEIGHT OF FOOD ONLY, NOT INCLUDING PLATE OR BOWL) and calculate detailed nutritional information.
 
 User preferences: ${JSON.stringify(preferences || {})}
 

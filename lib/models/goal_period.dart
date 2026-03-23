@@ -7,6 +7,7 @@ class GoalPeriod {
   final NutritionGoals goals;
   final String notes;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   const GoalPeriod({
     required this.id,
@@ -15,7 +16,8 @@ class GoalPeriod {
     required this.goals,
     this.notes = '',
     required this.createdAt,
-  });
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? createdAt;
 
   Map<String, dynamic> toMap() {
     return {
@@ -25,6 +27,7 @@ class GoalPeriod {
       'goals': goals.toMap(),
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
@@ -36,6 +39,7 @@ class GoalPeriod {
       goals: NutritionGoals.fromMap(map['goals'] as Map<String, dynamic>),
       notes: map['notes'] as String? ?? '',
       createdAt: DateTime.parse(map['createdAt'] as String),
+      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt'] as String) : null,
     );
   }
 
@@ -52,6 +56,7 @@ class GoalPeriod {
       goals: goals ?? this.goals,
       notes: notes ?? this.notes,
       createdAt: createdAt,
+      updatedAt: DateTime.now(),
     );
   }
 
