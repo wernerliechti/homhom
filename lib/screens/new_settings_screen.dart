@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 
 import '../screens/purchase_homs_screen.dart';
 import '../screens/api_config_screen.dart';
+import '../screens/backup_screen.dart';
 
 class NewSettingsScreen extends StatelessWidget {
   const NewSettingsScreen({super.key});
@@ -213,6 +214,23 @@ class NewSettingsScreen extends StatelessWidget {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const ApiConfigScreen()),
+            );
+          },
+        ),
+
+        const SizedBox(height: 12),
+
+        // Backup & Restore
+        _buildSettingsTile(
+          icon: Icons.backup,
+          title: 'Backup & Restore',
+          subtitle: 'Export or import meal and goal history',
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const BackupScreen(),
+              ),
             );
           },
         ),

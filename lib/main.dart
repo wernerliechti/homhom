@@ -6,8 +6,10 @@ import 'theme/app_theme.dart';
 import 'providers/nutrition_provider.dart';
 import 'providers/hom_provider.dart';
 import 'providers/firebase_provider.dart';
+import 'providers/backup_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/backup_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +43,9 @@ class HomHomApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => HomProvider()..initialize(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => BackupProvider(),
+        ),
       ],
       child: MaterialApp(
         title: 'HomHom',
@@ -50,6 +55,7 @@ class HomHomApp extends StatelessWidget {
         routes: {
           '/': (context) => const SplashScreen(),
           '/home': (context) => const HomeScreen(),
+          '/backup': (context) => const BackupScreen(),
         },
       ),
     );
