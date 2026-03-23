@@ -350,6 +350,86 @@ class HomService {
     }
   }
 
+  /// Check if user has exceeded the 10 requests per hour rate limit
+  /// Returns (canMakeRequest, remainingRequests, timeUntilReset)
+  Future<({bool canMakeRequest, int remainingRequests, Duration timeUntilReset})> 
+      checkRateLimit() async {
+    try {
+      final timestampsStr = await _storage.read(key: _rateLimitKey);
+      List<int> timestamps = [];
+      
+      if (timestampsStr != null && timestampsStr.isNotEmpty) {
+        timestamps = timestampsStr
+            .split(',')
+            .map((ts) => int.tryParse(ts))
+            .whereType<int>()
+            .toList();
+      }
+      
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final oneHourAgo = now - (60 * 60 * 1000); // 1 hour in milliseconds
+      
+      // Remove timestamps older than 1 hour
+      timestamps.removeWhere((ts) => ts < oneHourAgo);
+      
+      final remainingRequests = _maxRequestsPerHour - timestamps.length;
+      final canMakeRequest = remainingRequests > 0;
+      
+      // Calculate time until the oldest request expires
+      Duration timeUntilReset = const Duration(seconds: 0);
+      if (timestamps.isNotEmpty) {
+        final oldestTimestamp = timestamps.first;
+        final timeUntilExpiry = oldestTimestamp + (60 * 60 * 1000) - now;
+        timeUntilReset = Duration(milliseconds: timeUntilExpiry);
+      }
+      
+      print('📊 Rate limit check: $remainingRequests/$_maxRequestsPerHour requests available');
+      
+      return (
+        canMakeRequest: canMakeRequest,
+        remainingRequests: remainingRequests,
+        timeUntilReset: timeUntilReset,
+      );
+    } catch (e) {
+      print('⚠️ Error checking rate limit: $e (allowing request to proceed)');
+      return (canMakeRequest: true, remainingRequests: _maxRequestsPerHour, timeUntilReset: const Duration());
+    }
+  }
+
+  /// Record a successful analysis request (only on success - consumes HOM)
+  /// This counts towards both rate limit and HOM deduction
+  Future<void> recordSuccessfulAnalysis() async {
+    try {
+      final timestampsStr = await _storage.read(key: _rateLimitKey);
+      List<int> timestamps = [];
+      
+      if (timestampsStr != null && timestampsStr.isNotEmpty) {
+        timestamps = timestampsStr
+            .split(',')
+            .map((ts) => int.tryParse(ts))
+            .whereType<int>()
+            .toList();
+      }
+      
+      // Add current timestamp
+      timestamps.add(DateTime.now().millisecondsSinceEpoch);
+      
+      // Keep only timestamps from last hour
+      final oneHourAgo = DateTime.now().millisecondsSinceEpoch - (60 * 60 * 1000);
+      timestamps.removeWhere((ts) => ts < oneHourAgo);
+      
+      // Save updated timestamps
+      await _storage.write(
+        key: _rateLimitKey,
+        value: timestamps.join(','),
+      );
+      
+      print('✅ Recorded SUCCESSFUL analysis. Total in last hour: ${timestamps.length}/$_maxRequestsPerHour');
+    } catch (e) {
+      print('⚠️ Error recording successful analysis: $e');
+    }
+  }
+
   void dispose() {
     _purchaseSubscription.cancel();
     _balanceController.close();

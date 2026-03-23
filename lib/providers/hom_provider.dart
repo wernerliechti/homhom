@@ -127,6 +127,17 @@ class HomProvider with ChangeNotifier {
     }
   }
 
+  /// Check if user has exceeded rate limit (10 requests per hour)
+  Future<({bool canMakeRequest, int remainingRequests, Duration timeUntilReset})> 
+      checkRateLimit() async {
+    return await _homService.checkRateLimit();
+  }
+
+  /// Record a successful analysis (only on success, counts towards rate limit and HOM deduction)
+  Future<void> recordSuccessfulAnalysis() async {
+    await _homService.recordSuccessfulAnalysis();
+  }
+
   /// Clear any error messages
   void clearError() {
     _lastError = null;
