@@ -173,12 +173,16 @@ On import, the service validates:
 ## File Location
 
 ### Android
-- **Downloads Folder**: `/storage/emulated/0/Downloads/`
+- **Primary**: `/storage/emulated/0/Downloads/` (if writable)
+- **Fallback**: App's external files directory (guaranteed writable)
 - **Requires Permission**: `android.permission.WRITE_EXTERNAL_STORAGE`
 
+**Note**: If system Downloads folder isn't accessible (permissions or device restrictions), backups are saved to the app's external files directory, which is always writable.
+
 ### iOS
-- **Fallback Location**: `Documents/Backups/` (public Downloads not available on iOS)
-- **Limitation**: Files must be managed through app or Files app
+- **Location**: `Documents/Backups/`
+- **Access**: Files accessible via Files app or iTunes file sharing
+- **Note**: iOS doesn't have a public Downloads folder
 
 ## Error Handling
 

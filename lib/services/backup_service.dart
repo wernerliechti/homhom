@@ -259,41 +259,54 @@ class BackupService {
   }
 
   /// Get the Downloads directory
+  /// Falls back to app's external storage if system Downloads isn't accessible
   Future<Directory> _getDownloadsDirectory() async {
-    if (Platform.isAndroid) {
-      // For Android, use the Downloads directory
-      final result = await _getDownloadsDirectoryAndroid();
-      if (result != null) return result;
-    } else if (Platform.isIOS) {
-      // For iOS, use Documents directory as iOS doesn't have a public Downloads folder
-      final dir = await getApplicationDocumentsDirectory();
-      final backupsDir = Directory('${dir.path}/Backups');
-      return backupsDir;
-    }
-
-    // Fallback to application support directory
-    return await getApplicationSupportDirectory();
-  }
-
-  /// Get Android Downloads directory using path_provider
-  Future<Directory?> _getDownloadsDirectoryAndroid() async {
     try {
-      // Try using getExternalStorageDirectory (requires WRITE_EXTERNAL_STORAGE)
-      final externalDir = await getExternalStorageDirectory();
-      if (externalDir != null) {
-        // Navigate up to the Downloads folder
-        // External storage structure: /storage/emulated/0/Android/data/app-package/files
-        // We want: /storage/emulated/0/Downloads
-        final parts = externalDir.path.split('/');
-        final storageRoot = '/${parts[1]}/${parts[2]}'; // /storage/emulated
-        final downloadsPath = '$storageRoot/Downloads';
-        return Directory(downloadsPath);
+      if (Platform.isAndroid) {
+        // Get app's external files directory (guaranteed writable)
+        final appExternalDir = await getExternalStorageDirectory();
+        if (appExternalDir != null) {
+          // For better UX, try to use system Downloads if accessible
+          final parts = appExternalDir.path.split('/');
+          if (parts.length >= 3) {
+            final storageRoot = '/${parts[1]}/${parts[2]}';
+            final downloadsPath = '$storageRoot/Downloads';
+            final downloadsDir = Directory(downloadsPath);
+            
+            // Check if we can write to system Downloads
+            try {
+              if (await downloadsDir.exists()) {
+                return downloadsDir;
+              }
+              // Try to create it
+              await downloadsDir.create(recursive: true);
+              return downloadsDir;
+            } catch (e) {
+              print('Cannot write to system Downloads, using app directory: $e');
+            }
+          }
+          
+          // Fallback to app's external files directory
+          final backupDir = Directory('${appExternalDir.path}/backups');
+          await backupDir.create(recursive: true);
+          return backupDir;
+        }
+      } else if (Platform.isIOS) {
+        // For iOS, use Documents directory
+        final dir = await getApplicationDocumentsDirectory();
+        final backupsDir = Directory('${dir.path}/Backups');
+        await backupsDir.create(recursive: true);
+        return backupsDir;
       }
     } catch (e) {
-      print('Could not access Downloads via getExternalStorageDirectory: $e');
+      print('Error getting downloads directory: $e');
     }
 
-    return null;
+    // Final fallback to application support directory
+    final fallbackDir = await getApplicationSupportDirectory();
+    final backupDir = Directory('${fallbackDir.path}/backups');
+    await backupDir.create(recursive: true);
+    return backupDir;
   }
 
   /// Generate a backup file name with timestamp
