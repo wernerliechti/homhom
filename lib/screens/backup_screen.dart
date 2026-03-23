@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'dart:io';
 import '../services/backup_service.dart';
 import '../models/backup_data.dart';
@@ -67,18 +67,21 @@ class _BackupScreenState extends State<BackupScreen> {
   Future<void> _handleImport() async {
     try {
       // Pick a ZIP file
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['zip'],
-        allowMultiple: false,
+      const XTypeGroup zipTypeGroup = XTypeGroup(
+        label: 'ZIP files',
+        extensions: <String>['zip'],
+      );
+      
+      final XFile? file = await openFile(
+        acceptedTypeGroups: <XTypeGroup>[zipTypeGroup],
       );
 
-      if (result == null || result.files.isEmpty) {
+      if (file == null) {
         _showMessage('No file selected', isError: true);
         return;
       }
 
-      final file = File(result.files.single.path!);
+      final zipFile = File(file.path);
 
       // Show confirmation dialog
       final confirmed = await _showConfirmDialog(
@@ -95,7 +98,7 @@ class _BackupScreenState extends State<BackupScreen> {
       });
 
       // Import backup
-      final backupData = await _backupService.importBackup(file, replace: true);
+      final backupData = await _backupService.importBackup(zipFile, replace: true);
 
       setState(() {
         _isLoading = false;

@@ -63,7 +63,7 @@ dependencies:
   
   # File operations and backup
   archive: ^3.4.0
-  file_picker: ^7.0.0
+  file_selector: ^1.2.0
   
   # Firebase
   firebase_core: ^2.24.2
