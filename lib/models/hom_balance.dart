@@ -31,7 +31,7 @@ class HomBalance {
 
   factory HomBalance.initial() {
     return HomBalance(
-      balance: 10, // 10 free HOMs for new users
+      balance: 50, // 10 free HOMs for new users
       isUnlimited: false,
       userApiKey: null,
       lastUpdated: DateTime.now(),
@@ -80,14 +80,14 @@ class HomBalance {
   HomBalance consumeHom() {
     if (isUnlimited) return this;
     if (balance <= 0) throw Exception('No HOMs remaining');
-    
+
     return copyWith(balance: balance - 1);
   }
 
   /// Add HOMs (only for metered users)
   HomBalance addHoms(int homs) {
     if (isUnlimited) return this;
-    
+
     return copyWith(balance: balance + homs);
   }
 
