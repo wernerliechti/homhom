@@ -12,7 +12,7 @@ import 'new_settings_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
-  
+
   const CameraScreen({super.key, this.onNavigateToTab});
 
   @override
@@ -57,7 +57,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 _buildHomStatusCard(homProvider),
                 const SizedBox(height: 16),
 
-                // AI Status Card  
+                // AI Status Card
                 _buildAIStatusCard(nutritionProvider),
                 const SizedBox(height: 24),
 
@@ -118,24 +118,17 @@ class _CameraScreenState extends State<CameraScreen> {
         final hasLocalKey = snapshot.data ?? false;
         // AI analysis is always ready - either via local OpenAI key or Firebase fallback
         final isReady = true;
-        
+
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppTheme.success.withAlpha(20),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppTheme.success,
-              width: 1,
-            ),
+            border: Border.all(color: AppTheme.success, width: 1),
           ),
           child: Row(
             children: [
-              const Icon(
-                Icons.check_circle,
-                color: AppTheme.success,
-                size: 20,
-              ),
+              const Icon(Icons.check_circle, color: AppTheme.success, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -151,7 +144,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      hasLocalKey 
+                      hasLocalKey
                           ? 'Using your OpenAI API key (unlimited)'
                           : 'Using HOMs-powered analysis (Firebase)',
                       style: const TextStyle(
@@ -166,7 +159,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: Icon(
-                    Icons.lightning_bolt,
+                    Icons.bolt,
                     color: AppTheme.success.withAlpha(150),
                     size: 16,
                   ),
@@ -184,12 +177,12 @@ class _CameraScreenState extends State<CameraScreen> {
     }
 
     final balance = homProvider.balance!;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: balance.canScan 
-            ? AppTheme.success.withAlpha(20) 
+        color: balance.canScan
+            ? AppTheme.success.withAlpha(20)
             : AppTheme.error.withAlpha(20),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
@@ -210,11 +203,11 @@ class _CameraScreenState extends State<CameraScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  balance.isUnlimited 
+                  balance.isUnlimited
                       ? 'Unlimited Scanning Ready'
                       : balance.canScan
-                          ? '${balance.balance} HOM${balance.balance != 1 ? 's' : ''} Available'
-                          : 'Out of HOMs',
+                      ? '${balance.balance} HOM${balance.balance != 1 ? 's' : ''} Available'
+                      : 'Out of HOMs',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -226,8 +219,8 @@ class _CameraScreenState extends State<CameraScreen> {
                   balance.isUnlimited
                       ? 'Using your OpenAI API key'
                       : balance.canScan
-                          ? 'Each meal scan consumes 1 HOM'
-                          : 'Purchase HOMs or set up your API key to continue',
+                      ? 'Each meal scan consumes 1 HOM'
+                      : 'Purchase HOMs or set up your API key to continue',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.textSecondary,
@@ -247,7 +240,10 @@ class _CameraScreenState extends State<CameraScreen> {
                 );
               },
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 minimumSize: Size.zero,
               ),
               child: const Text('Top Up'),
@@ -270,7 +266,7 @@ class _CameraScreenState extends State<CameraScreen> {
           primary: true,
         ),
         const SizedBox(height: 16),
-        
+
         // Gallery Button
         _buildOptionButton(
           icon: Icons.photo_library,
@@ -305,7 +301,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: primary 
+                  color: primary
                       ? Colors.white.withAlpha(40)
                       : AppTheme.primary.withAlpha(20),
                   shape: BoxShape.circle,
@@ -334,7 +330,7 @@ class _CameraScreenState extends State<CameraScreen> {
                       subtitle,
                       style: TextStyle(
                         fontSize: 14,
-                        color: primary 
+                        color: primary
                             ? Colors.white.withAlpha(200)
                             : AppTheme.textSecondary,
                       ),
@@ -351,7 +347,7 @@ class _CameraScreenState extends State<CameraScreen> {
               else
                 Icon(
                   Icons.arrow_forward_ios,
-                  color: primary 
+                  color: primary
                       ? Colors.white.withAlpha(200)
                       : AppTheme.textTertiary,
                   size: 16,
@@ -375,11 +371,7 @@ class _CameraScreenState extends State<CameraScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.tips_and_updates,
-                color: AppTheme.primary,
-                size: 20,
-              ),
+              Icon(Icons.tips_and_updates, color: AppTheme.primary, size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Tips for Better Analysis',
@@ -459,7 +451,7 @@ class _CameraScreenState extends State<CameraScreen> {
           builder: (context) => const PurchaseHomsScreen(isPaywall: true),
         ),
       );
-      
+
       // Return true if user purchased HOMs, false otherwise
       return result == true && homProvider.canScan;
     }
@@ -475,7 +467,7 @@ class _CameraScreenState extends State<CameraScreen> {
       final XFile? image = await _imagePicker.pickImage(
         source: source,
         imageQuality: 85, // Good quality while keeping file size reasonable
-        maxWidth: 2048,   // Limit resolution for faster processing
+        maxWidth: 2048, // Limit resolution for faster processing
         maxHeight: 2048,
       );
 
@@ -493,9 +485,7 @@ class _CameraScreenState extends State<CameraScreen> {
       if (mounted) {
         final result = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
-            builder: (_) => MealMetadataScreen(
-              imagePath: image.path,
-            ),
+            builder: (_) => MealMetadataScreen(imagePath: image.path),
           ),
         );
 
@@ -508,7 +498,7 @@ class _CameraScreenState extends State<CameraScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          
+
           // Navigate back to timeline to see the new meal
           widget.onNavigateToTab?.call(1);
         }

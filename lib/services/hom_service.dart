@@ -10,6 +10,8 @@ class HomService {
   static const _storage = FlutterSecureStorage();
   static const String _balanceKey = 'hom_balance';
   static const String _apiKeyKey = 'openai_api_key';
+  static const String _rateLimitKey = 'hom_analysis_timestamps';
+  static const int _maxRequestsPerHour = 10; // Rate limit: 10 requests per hour
 
   HomBalance? _currentBalance;
   final StreamController<HomBalance> _balanceController =
@@ -221,7 +223,7 @@ class HomService {
         await _storage.write(key: _apiKeyKey, value: apiKey);
       } else {
         // Switch to metered mode
-        _currentBalance = HomBalance.metered(50); // Start with 10 free HOMs
+        _currentBalance = HomBalance.metered(10); // Start with 10 free HOMs
         await _storage.delete(key: _apiKeyKey);
       }
 
@@ -352,12 +354,14 @@ class HomService {
 
   /// Check if user has exceeded the 10 requests per hour rate limit
   /// Returns (canMakeRequest, remainingRequests, timeUntilReset)
-  Future<({bool canMakeRequest, int remainingRequests, Duration timeUntilReset})> 
-      checkRateLimit() async {
+  Future<
+    ({bool canMakeRequest, int remainingRequests, Duration timeUntilReset})
+  >
+  checkRateLimit() async {
     try {
       final timestampsStr = await _storage.read(key: _rateLimitKey);
       List<int> timestamps = [];
-      
+
       if (timestampsStr != null && timestampsStr.isNotEmpty) {
         timestamps = timestampsStr
             .split(',')
@@ -365,16 +369,16 @@ class HomService {
             .whereType<int>()
             .toList();
       }
-      
+
       final now = DateTime.now().millisecondsSinceEpoch;
       final oneHourAgo = now - (60 * 60 * 1000); // 1 hour in milliseconds
-      
+
       // Remove timestamps older than 1 hour
       timestamps.removeWhere((ts) => ts < oneHourAgo);
-      
+
       final remainingRequests = _maxRequestsPerHour - timestamps.length;
       final canMakeRequest = remainingRequests > 0;
-      
+
       // Calculate time until the oldest request expires
       Duration timeUntilReset = const Duration(seconds: 0);
       if (timestamps.isNotEmpty) {
@@ -382,9 +386,11 @@ class HomService {
         final timeUntilExpiry = oldestTimestamp + (60 * 60 * 1000) - now;
         timeUntilReset = Duration(milliseconds: timeUntilExpiry);
       }
-      
-      print('📊 Rate limit check: $remainingRequests/$_maxRequestsPerHour requests available');
-      
+
+      print(
+        '📊 Rate limit check: $remainingRequests/$_maxRequestsPerHour requests available',
+      );
+
       return (
         canMakeRequest: canMakeRequest,
         remainingRequests: remainingRequests,
@@ -392,7 +398,11 @@ class HomService {
       );
     } catch (e) {
       print('⚠️ Error checking rate limit: $e (allowing request to proceed)');
-      return (canMakeRequest: true, remainingRequests: _maxRequestsPerHour, timeUntilReset: const Duration());
+      return (
+        canMakeRequest: true,
+        remainingRequests: _maxRequestsPerHour,
+        timeUntilReset: const Duration(),
+      );
     }
   }
 
@@ -402,7 +412,7 @@ class HomService {
     try {
       final timestampsStr = await _storage.read(key: _rateLimitKey);
       List<int> timestamps = [];
-      
+
       if (timestampsStr != null && timestampsStr.isNotEmpty) {
         timestamps = timestampsStr
             .split(',')
@@ -410,21 +420,21 @@ class HomService {
             .whereType<int>()
             .toList();
       }
-      
+
       // Add current timestamp
       timestamps.add(DateTime.now().millisecondsSinceEpoch);
-      
+
       // Keep only timestamps from last hour
-      final oneHourAgo = DateTime.now().millisecondsSinceEpoch - (60 * 60 * 1000);
+      final oneHourAgo =
+          DateTime.now().millisecondsSinceEpoch - (60 * 60 * 1000);
       timestamps.removeWhere((ts) => ts < oneHourAgo);
-      
+
       // Save updated timestamps
-      await _storage.write(
-        key: _rateLimitKey,
-        value: timestamps.join(','),
+      await _storage.write(key: _rateLimitKey, value: timestamps.join(','));
+
+      print(
+        '✅ Recorded SUCCESSFUL analysis. Total in last hour: ${timestamps.length}/$_maxRequestsPerHour',
       );
-      
-      print('✅ Recorded SUCCESSFUL analysis. Total in last hour: ${timestamps.length}/$_maxRequestsPerHour');
     } catch (e) {
       print('⚠️ Error recording successful analysis: $e');
     }
