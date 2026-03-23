@@ -267,9 +267,10 @@ class BackupService {
         final appExternalDir = await getExternalStorageDirectory();
         if (appExternalDir != null) {
           // For better UX, try to use system Downloads if accessible
+          // Path is typically: /storage/emulated/0/Android/data/app-package/files
           final parts = appExternalDir.path.split('/');
-          if (parts.length >= 3) {
-            final storageRoot = '/${parts[1]}/${parts[2]}';
+          if (parts.length >= 4) {
+            final storageRoot = '/${parts[1]}/${parts[2]}/${parts[3]}';
             final downloadsPath = '$storageRoot/Downloads';
             final downloadsDir = Directory(downloadsPath);
             
